@@ -1,0 +1,28 @@
+# Dados brutos da ANEEL (grandes — nunca versionar; só o seed pequeno entra)
+data/raw/
+*.parquet
+*.zip
+*.csv
+!data/seed/**
+
+# Bancos locais
+*.duckdb
+*.db
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.env
+
+# Node
+node_modules/
+dist/
+build/
+.env.local
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
