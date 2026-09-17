@@ -1,0 +1,318 @@
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+
+.app-header h1 {
+  font-size: 1.75rem;
+  margin: 0 0 4px;
+}
+
+.subtitulo {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0 0 16px;
+  max-width: 60ch;
+}
+
+.texto-muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.erro {
+  color: var(--div-up);
+}
+
+.app-erro {
+  max-width: 480px;
+  margin: 80px auto;
+  text-align: center;
+  padding: 0 20px;
+}
+
+/* Filtros */
+.filtros {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.filtro-competencia {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.filtro-competencia select {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  min-width: 160px;
+}
+
+/* Conteúdo — mantém o render anterior visível (opacidade) durante refetch */
+.conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: opacity 0.15s ease;
+}
+
+.conteudo.carregando {
+  opacity: 0.6;
+}
+
+/* Cartões */
+.cartao {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+
+.cartao h2 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+.cartao h3 {
+  font-size: 0.95rem;
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+}
+
+.cartao-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.botao-fechar {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  flex: none;
+}
+
+.botao-fechar:hover {
+  background: var(--page-plane);
+}
+
+/* Tabela de ranking */
+.tabela-scroll {
+  overflow-x: auto;
+}
+
+.tabela-ranking {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.tabela-ranking th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--baseline);
+  white-space: nowrap;
+}
+
+.tabela-ranking td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--gridline);
+  white-space: nowrap;
+}
+
+.tabela-ranking td.numero {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.tabela-ranking th:nth-child(n+2) {
+  text-align: right;
+}
+
+.tabela-ranking tbody tr {
+  cursor: pointer;
+}
+
+.tabela-ranking tbody tr:hover {
+  background: var(--page-plane);
+}
+
+.tabela-ranking tbody tr.linha-selecionada {
+  background: var(--page-plane);
+  outline: 2px solid var(--series-1);
+  outline-offset: -2px;
+}
+
+.nome-distribuidora {
+  font-weight: 500;
+}
+
+.sigla-distribuidora {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.variacao {
+  font-weight: 600;
+}
+
+/* Mapa */
+.mapa-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.mapa-svg {
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+}
+
+.mapa-uf {
+  cursor: pointer;
+  transition: opacity 0.1s ease;
+}
+
+.mapa-uf:hover,
+.mapa-uf:focus {
+  opacity: 0.8;
+  outline: none;
+}
+
+.legenda-sequencial {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.legenda-rampa {
+  display: flex;
+  height: 10px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.legenda-rampa span {
+  width: 20px;
+  height: 100%;
+}
+
+/* Tooltips */
+.tooltip {
+  position: fixed;
+  z-index: 20;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+  max-width: 220px;
+}
+
+.tooltip-fixo {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  display: inline-block;
+  margin-top: 8px;
+}
+
+.tooltip-valor {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Gráfico de linha */
+.grafico-linha-wrap svg {
+  width: 100%;
+  height: auto;
+}
+
+/* Drilldown */
+.drilldown-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 12px;
+}
+
+@media (max-width: 720px) {
+  .drilldown-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Barras de causas */
+.causas-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.causa-linha {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.causa-rotulo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+
+.causa-tag {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.causa-barra-trilho {
+  position: relative;
+  background: var(--page-plane);
+  border-radius: 4px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.causa-barra {
+  height: 100%;
+  max-height: 20px;
+  background: var(--series-1);
+  border-radius: 4px;
+  min-width: 2px;
+}
+
+.causa-valor {
+  position: absolute;
+  right: 8px;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
