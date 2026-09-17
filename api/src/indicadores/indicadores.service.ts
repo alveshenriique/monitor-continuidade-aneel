@@ -21,6 +21,7 @@ const ufs: Uf[] = JSON.parse(
   readFileSync(resolve(REFERENCIA_DIR, 'ufs.json'), 'utf-8'),
 );
 const UF_POR_CODIGO = new Map(ufs.map((uf) => [uf.codigo, uf]));
+const UF_POR_SIGLA = new Map(ufs.map((uf) => [uf.sigla.toUpperCase(), uf]));
 
 export interface DistribuidoraMesRow {
   sig_agente: string;
@@ -57,6 +58,16 @@ interface MunicipioMesRow {
   n_interrupcoes: number;
   afetados_total: number;
   consumidor_hora: number;
+}
+
+export interface DistribuidoraUfRow {
+  sig_agente: string;
+  distribuidora: string;
+  n_interrupcoes: number;
+  afetados_total: number;
+  consumidor_hora: number;
+  participacao: number;
+  variacao_pct: number | null;
 }
 
 @Injectable()
@@ -178,6 +189,55 @@ export class IndicadoresService {
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null);
+  }
+
+  /**
+   * Ranking das distribuidoras atuantes numa UF no mês, ordenado por
+   * consumidor-hora perdido. Não usa DEC aqui: o denominador do DEC
+   * (consumidores ativos) é do conjunto, que pode cruzar mais de uma UF, então
+   * não existe um "ativos" isolado e correto por UF para dividir — consumidor-
+   * hora é aditivo e não tem esse problema.
+   */
+  async distribuidorasPorUf(ufSigla: string, competencia: string | undefined) {
+    const comp = this.validarCompetencia(competencia);
+    const uf = UF_POR_SIGLA.get(ufSigla.toUpperCase());
+    if (!uf) {
+      throw new NotFoundException(`UF "${ufSigla}" não encontrada.`);
+    }
+
+    // Mesma lógica do ranking nacional de "quem piorou" (comparar com a média
+    // das competências anteriores), só que localizada: a pergunta muda de
+    // "quem piorou no Brasil" para "quem piorou neste estado".
+    const rows = await this.db.query<DistribuidoraUfRow>(
+      `WITH atual AS (
+         SELECT sig_agente, any_value(distribuidora) AS distribuidora,
+                sum(n_interrupcoes)  AS n_interrupcoes,
+                sum(afetados_total)  AS afetados_total,
+                sum(consumidor_hora) AS consumidor_hora
+         FROM distribuidora_uf_mes
+         WHERE uf_codigo = ? AND strftime(competencia, '%Y-%m') = ?
+         GROUP BY sig_agente
+       ),
+       anteriores AS (
+         SELECT sig_agente, avg(consumidor_hora) AS consumidor_hora_medio_anterior
+         FROM distribuidora_uf_mes
+         WHERE uf_codigo = ? AND strftime(competencia, '%Y-%m') < ?
+         GROUP BY sig_agente
+       )
+       SELECT a.sig_agente, a.distribuidora, a.n_interrupcoes, a.afetados_total,
+              a.consumidor_hora,
+              a.consumidor_hora / sum(a.consumidor_hora) OVER () AS participacao,
+              CASE WHEN p.consumidor_hora_medio_anterior > 0
+                   THEN (a.consumidor_hora - p.consumidor_hora_medio_anterior)
+                        / p.consumidor_hora_medio_anterior
+              END AS variacao_pct
+       FROM atual a
+       LEFT JOIN anteriores p USING (sig_agente)
+       ORDER BY variacao_pct DESC NULLS LAST`,
+      [uf.codigo, comp, uf.codigo, comp],
+    );
+
+    return { uf: uf.sigla, uf_nome: uf.nome, competencia: comp, distribuidoras: rows };
   }
 
   /** Malha geográfica (GeoJSON) das UFs, servida como veio do IBGE — estática. */
