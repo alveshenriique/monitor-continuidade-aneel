@@ -3,11 +3,15 @@ data/raw/
 *.parquet
 *.zip
 *.csv
-!data/seed/**
 
 # Bancos locais
 *.duckdb
 *.db
+
+# Seed pequeno e pré-processado (permite `docker compose up` funcionar de
+# primeira, sem baixar/reprocessar o dado bruto). Precisa vir DEPOIS das
+# regras acima — o gitignore aplica a última regra que casar com o caminho.
+!data/seed/**
 
 # Python
 .venv/
