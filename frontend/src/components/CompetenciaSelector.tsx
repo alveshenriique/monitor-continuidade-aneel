@@ -1,4 +1,4 @@
-import { formatarCompetencia } from '../format';
+import { formatarCompetenciaLonga } from '../format';
 
 interface Props {
   competencias: string[];
@@ -16,7 +16,7 @@ export function CompetenciaSelector({ competencias, selecionada, onSelecionar }:
       >
         {competencias.map((c) => (
           <option key={c} value={c}>
-            {formatarCompetencia(c)}
+            {formatarCompetenciaLonga(c)}
           </option>
         ))}
       </select>

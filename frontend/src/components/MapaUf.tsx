@@ -10,6 +10,7 @@ const ALTURA = 480;
 interface Props {
   malha: MalhaGeoJson;
   dados: MapaUfRow[];
+  onSelecionar: (uf: MapaUfRow) => void;
 }
 
 interface DicaFerramenta {
@@ -18,7 +19,7 @@ interface DicaFerramenta {
   uf: MapaUfRow;
 }
 
-export function MapaUf({ malha, dados }: Props) {
+export function MapaUf({ malha, dados, onSelecionar }: Props) {
   const [dica, setDica] = useState<DicaFerramenta | null>(null);
 
   const porCodigo = useMemo(
@@ -47,8 +48,9 @@ export function MapaUf({ malha, dados }: Props) {
     <div className="cartao">
       <h2>Onde está piorando</h2>
       <p className="subtitulo">
-        Consumidor-hora perdido por UF no mês (soma de consumidores afetados × duração
-        da interrupção). Cor mais escura = mais impacto.
+        Consumidor-hora perdido por UF no mês. Essa métrica soma, em cada interrupção,
+        o número de consumidores afetados multiplicado pela duração. Quanto mais escura
+        a cor, maior o impacto.
       </p>
       <div className="mapa-layout">
         <svg
@@ -71,6 +73,8 @@ export function MapaUf({ malha, dados }: Props) {
                 strokeWidth={1}
                 className="mapa-uf"
                 tabIndex={linha ? 0 : undefined}
+                role={linha ? 'button' : undefined}
+                aria-label={linha ? `Ver distribuidoras em ${linha.uf_nome}` : undefined}
                 onPointerMove={(e) => {
                   if (!linha) return;
                   setDica({ x: e.clientX, y: e.clientY, uf: linha });
@@ -82,6 +86,10 @@ export function MapaUf({ malha, dados }: Props) {
                 }}
                 onPointerLeave={() => setDica(null)}
                 onBlur={() => setDica(null)}
+                onClick={() => linha && onSelecionar(linha)}
+                onKeyDown={(e) => {
+                  if (linha && (e.key === 'Enter' || e.key === ' ')) onSelecionar(linha);
+                }}
               >
                 {linha && <title>{linha.uf_nome}</title>}
               </path>

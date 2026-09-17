@@ -47,6 +47,23 @@ export interface MapaUf {
   consumidor_hora: number;
 }
 
+export interface DistribuidoraUf {
+  sig_agente: string;
+  distribuidora: string;
+  n_interrupcoes: number;
+  afetados_total: number;
+  consumidor_hora: number;
+  participacao: number;
+  variacao_pct: number | null;
+}
+
+export interface UfDetalhe {
+  uf: string;
+  uf_nome: string;
+  competencia: string;
+  distribuidoras: DistribuidoraUf[];
+}
+
 export interface MalhaGeoJson {
   type: 'FeatureCollection';
   features: Array<{
@@ -80,4 +97,6 @@ export const api = {
   mapa: (competencia: string) =>
     get<MapaUf[]>(`/indicadores/mapa?competencia=${competencia}`),
   malha: () => get<MalhaGeoJson>('/indicadores/mapa/malha'),
+  distribuidorasPorUf: (uf: string, competencia: string) =>
+    get<UfDetalhe>(`/indicadores/mapa/${uf}/distribuidoras?competencia=${competencia}`),
 };
