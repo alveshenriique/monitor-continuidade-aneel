@@ -148,8 +148,6 @@ cd frontend && npm install && npm run dev    # http://localhost:5173
 - Ainda não há testes automatizados (pytest para o pipeline, testes de endpoint na
   API) nem um workflow de CI agendado para o backfill mensal — próximos passos
   naturais depois deste README.
-- `scripts/` guarda os scripts usados pra explorar o schema do dado bruto durante o
-  desenvolvimento; não fazem parte do produto.
 
 ## Estrutura do repositório
 
