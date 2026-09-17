@@ -83,6 +83,7 @@ def construir(con: duckdb.DuckDBPyConnection, src: str) -> None:
             NomAgente                                   AS distribuidora,
             NumCNPJDistribuidora                        AS cnpj,
             CodMunicipioIBGE                            AS municipio_ibge,
+            CAST(CodMunicipioIBGE / 100000 AS INTEGER)  AS uf_codigo, -- 2 primeiros dígitos do código IBGE do município
             CodConjUnidadeConsumidora                   AS conjunto,
             DscConjuntoUnidadeConsumidora               AS conjunto_nome,
             make_date(CAST(AnoCompetencia AS INT),
@@ -138,6 +139,22 @@ def construir(con: duckdb.DuckDBPyConnection, src: str) -> None:
         GROUP BY municipio_ibge, competencia
     """)
 
+    # Roll-up por distribuidora/UF/mês — quem atua em cada estado, pro clique no
+    # mapa. Ranqueado por consumidor-hora (aditivo); DEC não é usado aqui porque
+    # seu denominador (consumidores ativos) é do conjunto, que cruza UFs, então
+    # não tem um valor "ativos" correto e isolado por UF pra dividir.
+    con.execute("""
+        CREATE OR REPLACE TABLE distribuidora_uf_mes AS
+        SELECT sig_agente, any_value(distribuidora) AS distribuidora,
+               uf_codigo, competencia,
+               count(*)              AS n_interrupcoes,
+               sum(afetados)         AS afetados_total,
+               sum(afetados * dur_h) AS consumidor_hora
+        FROM base
+        WHERE uf_codigo BETWEEN 11 AND 53
+        GROUP BY sig_agente, uf_codigo, competencia
+    """)
+
     # Quebra por causa, por distribuidora/mês (para o drill-down).
     con.execute("""
         CREATE OR REPLACE TABLE causa_distribuidora_mes AS
@@ -165,7 +182,8 @@ def main() -> None:
     construir(con, src)
 
     print("\n=== Tabelas geradas ===")
-    for t in ("fato_conjunto_mes", "distribuidora_mes", "municipio_mes", "causa_distribuidora_mes"):
+    for t in ("fato_conjunto_mes", "distribuidora_mes", "municipio_mes",
+              "distribuidora_uf_mes", "causa_distribuidora_mes"):
         (linhas,) = con.execute(f"SELECT count(*) FROM {t}").fetchone()
         print(f"  {t:<28} {linhas:>8,} linhas")
 

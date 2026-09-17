@@ -29,4 +29,12 @@ export class IndicadoresController {
   malha() {
     return this.indicadores.malhaUf();
   }
+
+  @Get('mapa/:uf/distribuidoras')
+  distribuidorasPorUf(
+    @Param('uf') uf: string,
+    @Query('competencia') competencia?: string,
+  ) {
+    return this.indicadores.distribuidorasPorUf(uf, competencia);
+  }
 }
