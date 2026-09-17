@@ -168,6 +168,7 @@ export class IndicadoresService {
         if (!uf) return null; // código sem UF válida (ruído residual do dado bruto)
         return {
           uf: uf.sigla,
+          uf_codigo: String(uf.codigo), // casa com "codarea" do GeoJSON de malha_uf
           uf_nome: uf.nome,
           regiao: uf.regiao_sigla,
           regiao_nome: uf.regiao_nome,
