@@ -19,6 +19,7 @@ __pycache__/
 node_modules/
 dist/
 build/
+*.tsbuildinfo
 .env.local
 
 # SO / editor
