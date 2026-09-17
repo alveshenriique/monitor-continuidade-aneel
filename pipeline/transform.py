@@ -15,6 +15,8 @@ Decisões de modelagem (documentadas para o README/vídeo):
   - Excluídas as interrupções com expurgo regulatório (situação de emergência,
     dia crítico, falha na instalação do consumidor etc.); mantidas as de motivo
     "Não houve Expurgo", que são as que compõem os indicadores de continuidade.
+  - SigAgente vem com padding fixo (20 caracteres, preenchido com espaços) no
+    bruto; aplicado trim() para servir como identificador em URLs/JSON.
 
 Uso:
     python -m pipeline.transform
@@ -77,7 +79,7 @@ def construir(con: duckdb.DuckDBPyConnection, src: str) -> None:
     con.execute(f"""
         CREATE OR REPLACE TEMP TABLE base AS
         SELECT
-            SigAgente                                   AS sig_agente,
+            trim(SigAgente)                             AS sig_agente,
             NomAgente                                   AS distribuidora,
             NumCNPJDistribuidora                        AS cnpj,
             CodMunicipioIBGE                            AS municipio_ibge,
