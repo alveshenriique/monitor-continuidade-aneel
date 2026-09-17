@@ -4,6 +4,7 @@ import { CompetenciaSelector } from './components/CompetenciaSelector';
 import { RankingDistribuidoras } from './components/RankingDistribuidoras';
 import { MapaUf as MapaUfComponente } from './components/MapaUf';
 import { Drilldown } from './components/Drilldown';
+import { UfDrilldown } from './components/UfDrilldown';
 import './App.css';
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
   const [carregandoMes, setCarregandoMes] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [selecionada, setSelecionada] = useState<DistribuidoraRanking | null>(null);
+  const [ufSelecionada, setUfSelecionada] = useState<MapaUf | null>(null);
 
   // Carrega competências e malha geográfica uma única vez.
   useEffect(() => {
@@ -53,10 +55,10 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Monitor de Continuidade</h1>
+        <h1>Monitor de Continuidade ANEEL</h1>
         <p className="subtitulo">
-          Onde o fornecimento de energia está piorando no Brasil e qual distribuidora é
-          responsável — a partir dos dados públicos de interrupções da ANEEL.
+          Mostra onde o fornecimento de energia está piorando no Brasil e qual
+          distribuidora é responsável, a partir dos dados públicos de interrupções da ANEEL.
         </p>
       </header>
 
@@ -71,22 +73,47 @@ export default function App() {
       </div>
 
       <main className={carregandoMes ? 'conteudo carregando' : 'conteudo'}>
-        {malha && <MapaUfComponente malha={malha} dados={mapa} />}
+        <div className="painel-superior">
+          {malha && (
+            <MapaUfComponente
+              malha={malha}
+              dados={mapa}
+              onSelecionar={(uf) => {
+                setSelecionada(null);
+                setUfSelecionada(uf);
+              }}
+            />
+          )}
 
-        <RankingDistribuidoras
-          dados={ranking}
-          selecionada={selecionada?.sig_agente ?? null}
-          onSelecionar={(sig) => {
-            const linha = ranking.find((r) => r.sig_agente === sig) ?? null;
-            setSelecionada((atual) => (atual?.sig_agente === sig ? null : linha));
-          }}
-        />
+          <RankingDistribuidoras
+            dados={ranking}
+            selecionada={selecionada?.sig_agente ?? null}
+            onSelecionar={(sig) => {
+              const linha = ranking.find((r) => r.sig_agente === sig) ?? null;
+              setUfSelecionada(null);
+              setSelecionada((atual) => (atual?.sig_agente === sig ? null : linha));
+            }}
+          />
+        </div>
 
         {selecionada && (
           <Drilldown
             sig={selecionada.sig_agente}
             nome={selecionada.distribuidora}
             onFechar={() => setSelecionada(null)}
+          />
+        )}
+
+        {ufSelecionada && (
+          <UfDrilldown
+            uf={ufSelecionada.uf}
+            ufNome={ufSelecionada.uf_nome}
+            competencia={competencia}
+            participacaoNacional={
+              ufSelecionada.consumidor_hora /
+              mapa.reduce((soma, m) => soma + m.consumidor_hora, 0)
+            }
+            onFechar={() => setUfSelecionada(null)}
           />
         )}
       </main>

@@ -3,9 +3,19 @@ const MESES = [
   'jul', 'ago', 'set', 'out', 'nov', 'dez',
 ];
 
+const MESES_POR_EXTENSO = [
+  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+];
+
 export function formatarCompetencia(competencia: string): string {
   const [ano, mes] = competencia.split('-');
   return `${MESES[Number(mes) - 1]}/${ano}`;
+}
+
+export function formatarCompetenciaLonga(competencia: string): string {
+  const [ano, mes] = competencia.split('-');
+  return `${MESES_POR_EXTENSO[Number(mes) - 1]} de ${ano}`;
 }
 
 export function formatarNumero(valor: number, casas = 0): string {

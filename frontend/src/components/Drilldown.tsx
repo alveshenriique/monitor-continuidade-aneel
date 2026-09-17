@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type DistribuidoraDetalhe } from '../api/client';
 import { LineChartDec } from './LineChartDec';
 import { CausasBars } from './CausasBars';
+import { Modal } from './Modal';
 
 interface Props {
   sig: string;
@@ -31,32 +32,34 @@ export function Drilldown({ sig, nome, onFechar }: Props) {
   }, [sig]);
 
   return (
-    <div className="cartao">
-      <div className="cartao-cabecalho">
-        <div>
-          <h2>{nome}</h2>
-          <p className="subtitulo">{sig}</p>
+    <Modal onClose={onFechar} labelledBy="drilldown-titulo">
+      <div className="cartao">
+        <div className="cartao-cabecalho">
+          <div>
+            <h2 id="drilldown-titulo">{nome}</h2>
+            <p className="subtitulo">{sig}</p>
+          </div>
+          <button className="botao-fechar" onClick={onFechar} aria-label="Fechar detalhe">
+            ✕
+          </button>
         </div>
-        <button className="botao-fechar" onClick={onFechar} aria-label="Fechar detalhe">
-          ✕
-        </button>
+
+        {erro && <p className="erro">Não foi possível carregar: {erro}</p>}
+        {!erro && !detalhe && <p className="texto-muted">Carregando…</p>}
+
+        {detalhe && (
+          <div className="drilldown-grid">
+            <div>
+              <h3>DEC ponderado por mês</h3>
+              <LineChartDec serie={detalhe.serie} />
+            </div>
+            <div>
+              <h3>Causas em todo o histórico</h3>
+              <CausasBars causas={detalhe.causas} />
+            </div>
+          </div>
+        )}
       </div>
-
-      {erro && <p className="erro">Não foi possível carregar: {erro}</p>}
-      {!erro && !detalhe && <p className="texto-muted">Carregando…</p>}
-
-      {detalhe && (
-        <div className="drilldown-grid">
-          <div>
-            <h3>DEC ponderado por mês</h3>
-            <LineChartDec serie={detalhe.serie} />
-          </div>
-          <div>
-            <h3>Causas (todo o histórico)</h3>
-            <CausasBars causas={detalhe.causas} />
-          </div>
-        </div>
-      )}
-    </div>
+    </Modal>
   );
 }

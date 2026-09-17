@@ -2,9 +2,9 @@ import { useState } from 'react';
 import type { SerieMensal } from '../api/client';
 import { formatarCompetencia, formatarNumero } from '../format';
 
-const LARGURA = 640;
-const ALTURA = 220;
-const PADDING = { top: 16, right: 24, bottom: 28, left: 40 };
+const LARGURA = 540;
+const ALTURA = 240;
+const PADDING = { top: 18, right: 24, bottom: 28, left: 48 };
 
 interface Props {
   serie: SerieMensal[];
@@ -38,15 +38,27 @@ export function LineChartDec({ serie }: Props) {
         onPointerLeave={() => setIndiceAtivo(null)}
       >
         {gridY.map((f) => (
-          <line
-            key={f}
-            x1={PADDING.left}
-            x2={LARGURA - PADDING.right}
-            y1={PADDING.top + alturaUtil * (1 - f)}
-            y2={PADDING.top + alturaUtil * (1 - f)}
-            stroke="var(--gridline)"
-            strokeWidth={1}
-          />
+          <g key={f}>
+            <line
+              x1={PADDING.left}
+              x2={LARGURA - PADDING.right}
+              y1={PADDING.top + alturaUtil * (1 - f)}
+              y2={PADDING.top + alturaUtil * (1 - f)}
+              stroke="var(--gridline)"
+              strokeWidth={1}
+            />
+            {(f === 0 || f === 0.5 || f === 1) && (
+              <text
+                x={PADDING.left - 10}
+                y={PADDING.top + alturaUtil * (1 - f) + 4}
+                textAnchor="end"
+                fontSize={12}
+                fill="var(--text-muted)"
+              >
+                {formatarNumero((maxDec / 1.15) * f, f === 0 ? 0 : 2)}
+              </text>
+            )}
+          </g>
         ))}
 
         <path d={linhaPath} fill="none" stroke="var(--series-1)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
@@ -82,9 +94,10 @@ export function LineChartDec({ serie }: Props) {
         {/* rótulo direto no último ponto */}
         <text
           x={pontos[pontos.length - 1][0]}
-          y={pontos[pontos.length - 1][1] - 10}
+          y={pontos[pontos.length - 1][1] - 12}
           textAnchor="end"
-          fontSize={12}
+          fontSize={13}
+          fontWeight={600}
           fill="var(--text-primary)"
         >
           {formatarNumero(serie[serie.length - 1].dec_ponderado, 2)} h
@@ -96,7 +109,7 @@ export function LineChartDec({ serie }: Props) {
             x={x(i)}
             y={ALTURA - 8}
             textAnchor="middle"
-            fontSize={11}
+            fontSize={12}
             fill="var(--text-muted)"
           >
             {formatarCompetencia(s.competencia).split('/')[0]}

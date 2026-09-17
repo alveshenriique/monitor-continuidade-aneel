@@ -1,5 +1,5 @@
 .app {
-  max-width: 1100px;
+  max-width: 1360px;
   margin: 0 auto;
   padding: 24px 20px 64px;
 }
@@ -13,7 +13,6 @@
   color: var(--text-secondary);
   font-size: 0.9rem;
   margin: 0 0 16px;
-  max-width: 60ch;
 }
 
 .texto-muted {
@@ -53,7 +52,7 @@
   border: 1px solid var(--border);
   background: var(--surface-1);
   color: var(--text-primary);
-  min-width: 160px;
+  width: fit-content;
 }
 
 /* Conteúdo — mantém o render anterior visível (opacidade) durante refetch */
@@ -68,12 +67,28 @@
   opacity: 0.6;
 }
 
+/* Mapa + ranking lado a lado em telas largas — as duas respostas de
+   "onde está piorando" cabem numa olhada só, sem scroll. */
+.painel-superior {
+  display: grid;
+  grid-template-columns: 460px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .painel-superior {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* Cartões */
 .cartao {
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px 24px;
+  min-width: 0; /* deixa o card encolher dentro do grid em vez de estourar a página */
 }
 
 .cartao h2 {
@@ -107,6 +122,41 @@
 
 .botao-fechar:hover {
   background: var(--page-plane);
+}
+
+/* Modal do drill-down */
+.modal-fundo {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 6vh 20px;
+  overflow-y: auto;
+  z-index: 50;
+  animation: modal-fundo-entrada 0.15s ease;
+}
+
+.modal-painel {
+  width: 100%;
+  max-width: 1000px;
+  outline: none;
+  animation: modal-painel-entrada 0.18s ease;
+}
+
+.modal-painel .cartao {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes modal-fundo-entrada {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-painel-entrada {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Tabela de ranking */
@@ -147,11 +197,13 @@
   text-align: right;
 }
 
-.tabela-ranking tbody tr {
+/* Só linhas marcadas como clicáveis parecem clicáveis — a tabela do modal de
+   UF usa a mesma classe base, mas só exibe dado, não navega pra lugar nenhum. */
+.tabela-ranking tbody tr.linha-clicavel {
   cursor: pointer;
 }
 
-.tabela-ranking tbody tr:hover {
+.tabela-ranking tbody tr.linha-clicavel:hover {
   background: var(--page-plane);
 }
 
@@ -163,6 +215,7 @@
 
 .nome-distribuidora {
   font-weight: 500;
+  white-space: normal;
 }
 
 .sigla-distribuidora {
@@ -253,10 +306,11 @@
   height: auto;
 }
 
-/* Drilldown */
+/* Drilldown — lado a lado, mas o gráfico ganha mais espaço que as causas
+   (3:2) porque precisa de mais largura pra rótulos e eixo ficarem legíveis. */
 .drilldown-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 3fr 2fr;
   gap: 24px;
   margin-top: 12px;
 }

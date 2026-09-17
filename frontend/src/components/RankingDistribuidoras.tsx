@@ -12,19 +12,19 @@ export function RankingDistribuidoras({ dados, selecionada, onSelecionar }: Prop
     <div className="cartao">
       <h2>Quem piorou no mês</h2>
       <p className="subtitulo">
-        Variação do DEC ponderado (horas de interrupção por consumidor) em relação à
-        média das competências anteriores. Ordenado do que mais piorou para o que mais
-        melhorou.
+        Variação do DEC ponderado, a média de horas de interrupção por consumidor, em
+        relação à média das competências anteriores. Ordenado do que mais piorou para o
+        que mais melhorou.
       </p>
       <div className="tabela-scroll">
         <table className="tabela-ranking">
           <thead>
             <tr>
               <th scope="col">Distribuidora</th>
-              <th scope="col">DEC no mês (h)</th>
-              <th scope="col">Variação vs. média anterior</th>
-              <th scope="col">Interrupções</th>
-              <th scope="col">Consumidor-hora perdido</th>
+              <th scope="col">DEC (h)</th>
+              <th scope="col">Variação</th>
+              <th scope="col">Interr.</th>
+              <th scope="col">Cons.-hora</th>
             </tr>
           </thead>
           <tbody>
@@ -34,7 +34,7 @@ export function RankingDistribuidoras({ dados, selecionada, onSelecionar }: Prop
               return (
                 <tr
                   key={d.sig_agente}
-                  className={selecionadaLinha ? 'linha-selecionada' : undefined}
+                  className={selecionadaLinha ? 'linha-clicavel linha-selecionada' : 'linha-clicavel'}
                   onClick={() => onSelecionar(d.sig_agente)}
                   tabIndex={0}
                   role="button"
@@ -43,7 +43,7 @@ export function RankingDistribuidoras({ dados, selecionada, onSelecionar }: Prop
                     if (e.key === 'Enter' || e.key === ' ') onSelecionar(d.sig_agente);
                   }}
                 >
-                  <td>
+                  <td title={d.distribuidora}>
                     <div className="nome-distribuidora">{d.distribuidora}</div>
                     <div className="sigla-distribuidora">{d.sig_agente}</div>
                   </td>
