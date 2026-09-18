@@ -3,7 +3,12 @@ import type { MalhaGeoJson, MapaUf as MapaUfRow } from '../api/client';
 import { criarProjecao, geometriaParaPath } from '../geo';
 import { formatarCompacto, formatarNumero } from '../format';
 
-const RAMPA = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', '#0d366b'];
+// Referencia os tokens --seq-100..700 de index.css (em vez de hex fixo), para
+// o mapa respeitar os passos validados de claro/escuro do tema automaticamente.
+const RAMPA = [
+  'var(--seq-100)', 'var(--seq-200)', 'var(--seq-300)', 'var(--seq-400)',
+  'var(--seq-500)', 'var(--seq-600)', 'var(--seq-700)',
+];
 const LARGURA = 480;
 const ALTURA = 480;
 
