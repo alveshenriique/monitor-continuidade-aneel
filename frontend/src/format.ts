@@ -36,3 +36,8 @@ export function formatarPercentual(valor: number): string {
   const sinal = valor > 0 ? '+' : '';
   return `${sinal}${(valor * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 }
+
+/** Para percentuais que nunca são uma variação (ex.: participação) — sem o "+" forçado. */
+export function formatarPercentualSimples(valor: number): string {
+  return `${(valor * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
+}

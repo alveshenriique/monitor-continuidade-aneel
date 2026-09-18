@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
 import { api, type UfDetalhe } from '../api/client';
-import { formatarPercentual } from '../format';
+import { formatarPercentualSimples } from '../format';
+import { useCarregamento } from '../hooks/useCarregamento';
 import { Modal } from './Modal';
+import { CabecalhoModal } from './CabecalhoModal';
+import { Variacao } from './Variacao';
 
 interface Props {
   uf: string;
@@ -12,42 +14,26 @@ interface Props {
 }
 
 export function UfDrilldown({ uf, ufNome, competencia, participacaoNacional, onFechar }: Props) {
-  const [detalhe, setDetalhe] = useState<UfDetalhe | null>(null);
-  const [erro, setErro] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelado = false;
-    setDetalhe(null);
-    setErro(null);
-    api
-      .distribuidorasPorUf(uf, competencia)
-      .then((d) => {
-        if (!cancelado) setDetalhe(d);
-      })
-      .catch((e: Error) => {
-        if (!cancelado) setErro(e.message);
-      });
-    return () => {
-      cancelado = true;
-    };
-  }, [uf, competencia]);
+  const { dado: detalhe, erro } = useCarregamento<UfDetalhe>(
+    () => api.distribuidorasPorUf(uf, competencia),
+    [uf, competencia],
+  );
 
   return (
     <Modal onClose={onFechar} labelledBy="uf-titulo">
       <div className="cartao">
-        <div className="cartao-cabecalho">
-          <div>
-            <h2 id="uf-titulo">{ufNome}</h2>
-            <p className="subtitulo">
-              Responde por {formatarPercentual(participacaoNacional).replace('+', '')} do
-              consumidor-hora perdido no Brasil neste mês. Distribuidoras atuantes aqui, com a
-              variação de cada uma em relação à própria média de meses anteriores neste estado.
-            </p>
-          </div>
-          <button className="botao-fechar" onClick={onFechar} aria-label="Fechar detalhe">
-            ✕
-          </button>
-        </div>
+        <CabecalhoModal
+          tituloId="uf-titulo"
+          titulo={ufNome}
+          onFechar={onFechar}
+          subtitulo={
+            <>
+              Responde por {formatarPercentualSimples(participacaoNacional)} do consumidor-hora
+              perdido no Brasil neste mês. Distribuidoras atuantes aqui, com a variação de cada
+              uma em relação à própria média de meses anteriores neste estado.
+            </>
+          }
+        />
 
         {erro && <p className="erro">Não foi possível carregar: {erro}</p>}
         {!erro && !detalhe && <p className="texto-muted">Carregando…</p>}
@@ -67,30 +53,18 @@ export function UfDrilldown({ uf, ufNome, competencia, participacaoNacional, onF
                 </tr>
               </thead>
               <tbody>
-                {detalhe.distribuidoras.map((d) => {
-                  const piorou = (d.variacao_pct ?? 0) > 0;
-                  return (
-                    <tr key={d.sig_agente}>
-                      <td title={d.distribuidora}>
-                        <div className="nome-distribuidora">{d.distribuidora}</div>
-                        <div className="sigla-distribuidora">{d.sig_agente}</div>
-                      </td>
-                      <td className="numero">{formatarPercentual(d.participacao).replace('+', '')}</td>
-                      <td className="numero">
-                        {d.variacao_pct === null ? (
-                          <span className="texto-muted">sem histórico</span>
-                        ) : (
-                          <span
-                            className="variacao"
-                            style={{ color: piorou ? 'var(--div-up)' : 'var(--div-down)' }}
-                          >
-                            {piorou ? '▲' : '▼'} {formatarPercentual(d.variacao_pct)}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {detalhe.distribuidoras.map((d) => (
+                  <tr key={d.sig_agente}>
+                    <td title={d.distribuidora}>
+                      <div className="nome-distribuidora">{d.distribuidora}</div>
+                      <div className="sigla-distribuidora">{d.sig_agente}</div>
+                    </td>
+                    <td className="numero">{formatarPercentualSimples(d.participacao)}</td>
+                    <td className="numero">
+                      <Variacao valor={d.variacao_pct} />
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
