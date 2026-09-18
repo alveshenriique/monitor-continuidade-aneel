@@ -83,7 +83,7 @@ def construir(con: duckdb.DuckDBPyConnection, src: str) -> None:
             NomAgente                                   AS distribuidora,
             NumCNPJDistribuidora                        AS cnpj,
             CodMunicipioIBGE                            AS municipio_ibge,
-            CAST(CodMunicipioIBGE / 100000 AS INTEGER)  AS uf_codigo, -- 2 primeiros dígitos do código IBGE do município
+            CodMunicipioIBGE // 100000                  AS uf_codigo, -- 2 primeiros dígitos do código IBGE do município (divisão inteira: "/" do DuckDB arredonda em vez de truncar)
             CodConjUnidadeConsumidora                   AS conjunto,
             DscConjuntoUnidadeConsumidora               AS conjunto_nome,
             make_date(CAST(AnoCompetencia AS INT),
