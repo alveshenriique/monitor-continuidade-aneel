@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
 import { api, type DistribuidoraDetalhe } from '../api/client';
+import { useCarregamento } from '../hooks/useCarregamento';
 import { LineChartDec } from './LineChartDec';
 import { CausasBars } from './CausasBars';
 import { Modal } from './Modal';
+import { CabecalhoModal } from './CabecalhoModal';
 
 interface Props {
   sig: string;
@@ -11,38 +12,20 @@ interface Props {
 }
 
 export function Drilldown({ sig, nome, onFechar }: Props) {
-  const [detalhe, setDetalhe] = useState<DistribuidoraDetalhe | null>(null);
-  const [erro, setErro] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelado = false;
-    setDetalhe(null);
-    setErro(null);
-    api
-      .distribuidoraDetalhe(sig)
-      .then((d) => {
-        if (!cancelado) setDetalhe(d);
-      })
-      .catch((e: Error) => {
-        if (!cancelado) setErro(e.message);
-      });
-    return () => {
-      cancelado = true;
-    };
-  }, [sig]);
+  const { dado: detalhe, erro } = useCarregamento<DistribuidoraDetalhe>(
+    () => api.distribuidoraDetalhe(sig),
+    [sig],
+  );
 
   return (
     <Modal onClose={onFechar} labelledBy="drilldown-titulo">
       <div className="cartao">
-        <div className="cartao-cabecalho">
-          <div>
-            <h2 id="drilldown-titulo">{nome}</h2>
-            <p className="subtitulo">{sig}</p>
-          </div>
-          <button className="botao-fechar" onClick={onFechar} aria-label="Fechar detalhe">
-            ✕
-          </button>
-        </div>
+        <CabecalhoModal
+          tituloId="drilldown-titulo"
+          titulo={nome}
+          subtitulo={sig}
+          onFechar={onFechar}
+        />
 
         {erro && <p className="erro">Não foi possível carregar: {erro}</p>}
         {!erro && !detalhe && <p className="texto-muted">Carregando…</p>}

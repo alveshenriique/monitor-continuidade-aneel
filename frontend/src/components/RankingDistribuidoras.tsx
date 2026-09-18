@@ -1,5 +1,6 @@
 import type { DistribuidoraRanking } from '../api/client';
-import { formatarCompacto, formatarNumero, formatarPercentual } from '../format';
+import { formatarCompacto, formatarNumero } from '../format';
+import { Variacao } from './Variacao';
 
 interface Props {
   dados: DistribuidoraRanking[];
@@ -29,7 +30,6 @@ export function RankingDistribuidoras({ dados, selecionada, onSelecionar }: Prop
           </thead>
           <tbody>
             {dados.map((d) => {
-              const piorou = (d.variacao_pct ?? 0) > 0;
               const selecionadaLinha = d.sig_agente === selecionada;
               return (
                 <tr
@@ -49,16 +49,7 @@ export function RankingDistribuidoras({ dados, selecionada, onSelecionar }: Prop
                   </td>
                   <td className="numero">{formatarNumero(d.dec_ponderado, 2)}</td>
                   <td className="numero">
-                    {d.variacao_pct === null ? (
-                      <span className="texto-muted">sem histórico</span>
-                    ) : (
-                      <span
-                        className="variacao"
-                        style={{ color: piorou ? 'var(--div-up)' : 'var(--div-down)' }}
-                      >
-                        {piorou ? '▲' : '▼'} {formatarPercentual(d.variacao_pct)}
-                      </span>
-                    )}
+                    <Variacao valor={d.variacao_pct} />
                   </td>
                   <td className="numero">{formatarNumero(d.n_interrupcoes)}</td>
                   <td className="numero">{formatarCompacto(d.consumidor_hora)}</td>
