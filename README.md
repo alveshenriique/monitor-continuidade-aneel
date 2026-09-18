@@ -88,7 +88,10 @@ docker compose restart api
 
 Isso baixa o Parquet do ano corrente (~200 MB) e regenera
 `data/processed/indicadores.duckdb`. Rodar mensalmente esse comando (ou um agendador
-equivalente) é como o painel se mantém atualizado com a publicação da ANEEL.
+equivalente) é como o painel se mantém atualizado com a publicação da ANEEL — e é
+exatamente isso que o workflow `.github/workflows/backfill-mensal.yml` automatiza: todo
+dia 2 do mês ele baixa o dado mais recente, recalcula os indicadores e commita o seed
+atualizado, sem precisar de intervenção manual.
 
 ### Desenvolvimento local, sem Docker
 
@@ -104,6 +107,19 @@ cd api && npm install && npm run start:dev   # http://localhost:3000
 
 # Painel (outro terminal)
 cd frontend && npm install && npm run dev    # http://localhost:5173
+```
+
+### Testes
+
+```bash
+# Pipeline — DEC/FEC, expurgo, outliers, derivação de UF, etc. (fixture sintética)
+pip install -r requirements-dev.txt
+pytest
+
+# API — unitários e end-to-end (Jest + supertest), batendo no indicadores.duckdb real
+cd api
+npm test
+npm run test:e2e
 ```
 
 ## Decisões de projeto
@@ -137,6 +153,11 @@ cd frontend && npm install && npm run dev    # http://localhost:5173
 - **Seed commitado** (`data/seed/indicadores.duckdb`) pra o `docker compose up`
   funcionar de primeira — o Parquet bruto (~200 MB) não é versionado; o backfill
   completo é um comando à parte, não bloqueia o boot.
+- **Divisão inteira explícita (`//`) pra derivar a UF**, não `CAST(x / 100000 AS
+  INTEGER)`: o `/` do DuckDB faz divisão real e o `CAST` pra inteiro *arredonda*, não
+  trunca. Isso chegou a produzir um bug real — município 3550308 (São Paulo capital)
+  virava "UF 36" (inexistente) e sumia do mapa e do ranking por estado — pego pelos
+  testes do pipeline antes de ir pro ar.
 
 ## Limitações conhecidas
 
@@ -145,22 +166,27 @@ cd frontend && npm install && npm run dev    # http://localhost:5173
   impacto agregado disso é pequeno o bastante pra não distorcer o resultado.
 - Não há indicador de DEC por UF (ver decisões de projeto acima) — só consumidor-hora
   e sua variação mês a mês.
-- Ainda não há testes automatizados (pytest para o pipeline, testes de endpoint na
-  API) nem um workflow de CI agendado para o backfill mensal — próximos passos
-  naturais depois deste README.
+- O workflow de backfill mensal (`.github/workflows/backfill-mensal.yml`) depende de
+  "Read and write permissions" habilitado nas configurações de Actions do repositório
+  para conseguir commitar o seed atualizado.
 
 ## Estrutura do repositório
 
 ```
 monitor-continuidade-aneel/
+├── .github/workflows/       # backfill mensal agendado (GitHub Actions)
 ├── docker-compose.yml       # orquestra seed + api + web (+ pipeline sob demanda)
-├── requirements.txt         # dependências Python fixadas
-├── pipeline/                # ingestão (CKAN) + transformação (DuckDB)
+├── requirements.txt         # dependências Python fixadas (runtime)
+├── requirements-dev.txt     # + pytest, para rodar os testes do pipeline
+├── pipeline/
+│   ├── ingest.py / transform.py / config.py
+│   └── tests/                # pytest — DEC/FEC, expurgo, outliers, UF etc.
 ├── data/
 │   ├── seed/                 # banco pequeno pré-processado, commitado
 │   ├── referencia/            # UFs do IBGE + malha geográfica (GeoJSON)
 │   ├── raw/                  # Parquet baixado da ANEEL (não versionado)
 │   └── processed/            # indicadores.duckdb gerado pelo pipeline (não versionado)
 ├── api/                     # NestJS — lê indicadores.duckdb, serve a API
+│   └── test/                 # testes e2e (Jest + supertest) dos endpoints
 └── frontend/                # React + Vite — painel
 ```
