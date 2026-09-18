@@ -162,7 +162,7 @@ export class IndicadoresService {
   async mapa(competencia: string | undefined) {
     const comp = this.validarCompetencia(competencia);
     const rows = await this.db.query<MunicipioMesRow>(
-      `SELECT CAST(municipio_ibge / 100000 AS INTEGER) AS uf_codigo,
+      `SELECT municipio_ibge // 100000 AS uf_codigo, -- divisão inteira: "/" do DuckDB arredonda em vez de truncar
               sum(n_interrupcoes)  AS n_interrupcoes,
               sum(afetados_total)  AS afetados_total,
               sum(consumidor_hora) AS consumidor_hora
