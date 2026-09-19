@@ -189,6 +189,7 @@ def construir_regulatorio(
     apurado_src: str | None = None,
     limite_src: str | None = None,
     compensacao_src: str | None = None,
+    fato_conjunto_src: str = "fato_conjunto_mes",
 ) -> None:
     """Cria as tabelas do enriquecimento regulatório (opcional).
 
@@ -205,12 +206,21 @@ def construir_regulatorio(
         distribuidora pode estourar o limite coletivo sem que nenhum
         consumidor individual tenha direito a compensação, e vice-versa.
       - regulatorio_distribuidora_mes: os três cruzados, no grão que a API
-        consome (distribuidora/mês).
+        consome (distribuidora/mês). Agregado pela sig_agente CANÔNICA (a de
+        `fato_conjunto_mes`, o dataset de interrupções), não pela sig_agente
+        que vem no dataset regulatório — as duas divergem para distribuidoras
+        que passaram por aquisição/rebranding (ex.: o regulatório ainda usa
+        "EQUATORIAL GO" para conjuntos que o dataset de interrupções já
+        identifica como "CELG"). Se a distribuidora_mes ao lado (que roda por
+        cima do dataset de interrupções) fosse usada, o painel simplesmente
+        não acharia o par pelo `LEFT JOIN ... ON sig_agente` do endpoint e o
+        dado regulatório dessas distribuidoras desaparecia em silêncio.
 
     ``*_src`` aceita uma fonte SQL alternativa (ex.: um nome de tabela já
     registrado) — usado pelos testes para injetar uma fixture sintética em
     vez do Parquet/CSV real. Por padrão lê os arquivos baixados por
-    `pipeline.ingest_continuidade`.
+    `pipeline.ingest_continuidade` e a `fato_conjunto_mes` já construída por
+    `construir()`.
     """
     apurado = apurado_src or f"read_parquet('{config.caminho_continuidade('apurado')}')"
     limite = limite_src or f"read_csv_auto('{config.caminho_continuidade('limite')}')"
@@ -267,14 +277,32 @@ def construir_regulatorio(
     # até o mês corrente, comparada ao limite do ano. Com o acumulado, 101 de
     # 3.177 conjuntos já estouravam o limite de DEC em 2026 — bem mais
     # plausível.
-    con.execute("""
+    con.execute(f"""
         CREATE OR REPLACE TABLE regulatorio_distribuidora_mes AS
-        WITH acumulado AS (
-            SELECT conjunto, sig_agente, competencia,
-                   sum(dec_oficial) OVER janela AS dec_acumulado_ano,
-                   sum(fec_oficial) OVER janela AS fec_acumulado_ano
-            FROM apurado_oficial_conjunto_mes
-            WINDOW janela AS (PARTITION BY conjunto ORDER BY competencia)
+        WITH sig_canonico AS (
+            -- Sigla canônica por conjunto: a de fato_conjunto_mes (dataset de
+            -- interrupções), não a do dataset regulatório — é essa que o
+            -- resto do painel usa, e é o que o endpoint de drill-down casa
+            -- via sig_agente. any_value()+GROUP BY em vez de DISTINCT: a
+            -- relação conjunto->sig_agente é 1:1 (verificado), mas assim a
+            -- consulta garante 1 linha por conjunto mesmo se essa premissa
+            -- um dia deixar de valer, em vez de arriscar multiplicar linha.
+            SELECT conjunto, any_value(sig_agente) AS sig_agente
+            FROM {fato_conjunto_src}
+            GROUP BY conjunto
+        ),
+        acumulado AS (
+            SELECT a.conjunto, s.sig_agente, a.competencia,
+                   sum(a.dec_oficial) OVER janela AS dec_acumulado_ano,
+                   sum(a.fec_oficial) OVER janela AS fec_acumulado_ano
+            FROM apurado_oficial_conjunto_mes a
+            -- INNER JOIN de propósito: um conjunto do dado regulatório sem
+            -- par em fato_conjunto_mes não tem sigla canônica pra agregar
+            -- por distribuidora do jeito que o resto do painel usa, e sem
+            -- nenhuma interrupção correspondente no período não há o que
+            -- cruzar de qualquer forma — então é descartado aqui.
+            JOIN sig_canonico s ON a.conjunto = s.conjunto
+            WINDOW janela AS (PARTITION BY a.conjunto ORDER BY a.competencia)
         )
         SELECT a.sig_agente, a.competencia,
                count(*)                                                            AS n_conjuntos,

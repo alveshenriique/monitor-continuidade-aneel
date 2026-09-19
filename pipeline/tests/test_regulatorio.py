@@ -47,6 +47,12 @@ def linha_compensacao(conjunto=100, sig_agente="TESTE", ano=2026, mes=1, indicad
     ]))
 
 
+def linha_fato(conjunto=100, sig_agente="TESTE"):
+    """Simula uma linha de fato_conjunto_mes — só as colunas que
+    construir_regulatorio realmente lê (conjunto, sig_agente)."""
+    return {"conjunto": conjunto, "sig_agente": sig_agente}
+
+
 @pytest.fixture
 def con():
     conexao = duckdb.connect(":memory:")
@@ -54,15 +60,19 @@ def con():
     conexao.close()
 
 
-def _construir(con, apurado, limite, compensacao, ano=2026):
+def _construir(con, apurado, limite, compensacao, ano=2026, fato=None):
+    if fato is None:
+        fato = [linha_fato()]  # conjunto=100 -> sig_agente="TESTE", casa com os defaults acima
     con.register("bruto_apurado", pd.DataFrame(apurado, columns=COLUNAS_APURADO))
     con.register("bruto_limite", pd.DataFrame(limite, columns=COLUNAS_LIMITE))
     con.register("bruto_compensacao", pd.DataFrame(compensacao, columns=COLUNAS_COMPENSACAO))
+    con.register("bruto_fato", pd.DataFrame(fato, columns=["conjunto", "sig_agente"]))
     construir_regulatorio(
         con, ano,
         apurado_src="bruto_apurado",
         limite_src="bruto_limite",
         compensacao_src="bruto_compensacao",
+        fato_conjunto_src="bruto_fato",
     )
 
 
@@ -138,3 +148,40 @@ def test_distribuidora_sem_dado_regulatorio_nao_quebra(con):
     _construir(con, apurado=[linha_apurado()], limite=[], compensacao=[], ano=2026)
     (n_acima,) = con.execute("SELECT n_conjuntos_acima_limite_dec FROM regulatorio_distribuidora_mes").fetchone()
     assert n_acima == 0
+
+
+def test_agrupa_pela_sigla_canonica_de_fato_conjunto_mes_nao_a_do_regulatorio(con):
+    """Bug real: o dataset regulatório usa uma sigla própria por conjunto, que
+    diverge da sigla do dataset de interrupções pra distribuidoras que
+    passaram por aquisição/rebranding (ex.: conjunto que o regulatório ainda
+    chama de "EQUATORIAL GO" e o dataset de interrupções já chama de "CELG").
+    O endpoint de drill-down casa por sig_agente vindo de fato_conjunto_mes
+    (via distribuidora_mes) — se regulatorio_distribuidora_mes agregasse pela
+    sigla do dataset regulatório, o LEFT JOIN do endpoint nunca acharia par e
+    o dado regulatório dessa distribuidora sumia em silêncio."""
+    _construir(
+        con,
+        apurado=[linha_apurado(conjunto=100, sig_agente="EQUATORIAL GO")],  # sigla do regulatório
+        limite=[],
+        compensacao=[linha_compensacao(conjunto=100, sig_agente="EQUATORIAL GO", valor=500.0)],
+        fato=[linha_fato(conjunto=100, sig_agente="CELG")],  # sigla canônica (interrupções)
+        ano=2026,
+    )
+    linhas = con.execute("SELECT sig_agente, compensacao_paga FROM regulatorio_distribuidora_mes").fetchall()
+    assert linhas == [("CELG", 500.0)]
+
+
+def test_conjunto_sem_par_em_fato_conjunto_mes_e_descartado(con):
+    """Sem sigla canônica (nenhuma interrupção correspondente no painel), o
+    conjunto não tem como ser agregado por distribuidora — é descartado, não
+    aparece com sig_agente nulo nem quebra a query."""
+    _construir(
+        con,
+        apurado=[linha_apurado(conjunto=999, sig_agente="ORFAO")],
+        limite=[],
+        compensacao=[],
+        fato=[linha_fato(conjunto=100, sig_agente="TESTE")],  # conjunto 999 não existe aqui
+        ano=2026,
+    )
+    (total,) = con.execute("SELECT count(*) FROM regulatorio_distribuidora_mes").fetchone()
+    assert total == 0
