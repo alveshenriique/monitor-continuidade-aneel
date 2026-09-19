@@ -69,6 +69,12 @@ export interface UfDetalhe {
   distribuidoras: DistribuidoraUf[];
 }
 
+export interface CompetenciasResposta {
+  competencias: string[];
+  /** Último mês consolidado pela ANEEL — meses depois deste podem estar parciais. */
+  mes_consolidado: string;
+}
+
 export interface MalhaGeoJson {
   type: 'FeatureCollection';
   features: Array<{
@@ -90,7 +96,7 @@ async function get<T>(path: string): Promise<T> {
 }
 
 export const api = {
-  competencias: () => get<string[]>('/indicadores/competencias'),
+  competencias: () => get<CompetenciasResposta>('/indicadores/competencias'),
   distribuidoras: (competencia: string) =>
     get<DistribuidoraRanking[]>(
       `/indicadores/distribuidoras?competencia=${competencia}`,
