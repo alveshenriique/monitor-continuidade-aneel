@@ -204,11 +204,31 @@ npm run test:e2e
   os 10 códigos "no mês" documentados em `CODIGOS_COMPENSACAO_MENSAL`
   (`pipeline/transform.py`) entram na soma, conferidos um a um contra o dicionário de
   dados oficial da ANEEL.
-- **Validação cruzada**: o dataset de indicadores coletivos também traz o DEC/FEC que
-  a própria ANEEL apurou oficialmente (`apurado_oficial_conjunto_mes`). Comparado com
-  o nosso cálculo a partir do dado bruto de interrupções: 99,3% dos conjuntos batem
-  quase exatamente (diferença mediana de 0,003h, correlação de 0,93) — um bom sinal de
-  que a lógica de DEC/FEC está correta.
+- **Validação cruzada, com divergência documentada**: o dataset de indicadores
+  coletivos também traz o DEC/FEC que a própria ANEEL apurou oficialmente
+  (`apurado_oficial_conjunto_mes`). Comparado com o nosso cálculo a partir do dado
+  bruto de interrupções: **~90% dos conjuntos-mês batem até 0,01h de diferença**
+  (diferença mediana de 0,003h) — um bom sinal de que a lógica de DEC/FEC está
+  correta. Os ~10% restantes divergem mais, e a causa já foi investigada: são
+  conjuntos com interrupções de duração extrema (algumas acima de 400h, uma
+  chegando a ~3.600h — 150 dias — no dado bruto), marcadas como "Não houve
+  Expurgo", que a ANEEL aparentemente trata com uma metodologia própria (um teto
+  de duração ou reclassificação) não exposta no dado público. Nosso cálculo é
+  aritmeticamente correto a partir do dado bruto tal como publicado; a diferença
+  nesses casos é metodológica, não um erro de fórmula — por isso não impomos um
+  teto artificial só para forçar concordância com o oficial. O painel usa nosso
+  cálculo (`dec`, `dec_ponderado`) como indicador primário; o valor oficial
+  (`dec_oficial`) existe no banco só para essa validação cruzada, não é exibido
+  como se fosse igual ao nosso.
+- **Mês consolidado**: os três recursos do dataset regulatório vêm com o mês mais
+  recente tipicamente incompleto (ex.: compensação de um mês pode aparecer com
+  poucos registros, ou zerada, simplesmente porque a ANEEL ainda não terminou de
+  apurar). Pra não mostrar um "R$ 0" como se fosse fato, o painel não abre no mês
+  mais recente disponível — abre no último mês **consolidado**, hoje fixado em
+  `MES_CONSOLIDADO` (`api/src/config.ts`), único lugar do código onde esse valor
+  existe. O endpoint `/indicadores/competencias` devolve esse valor junto com a
+  lista de meses; o painel usa isso pra decidir a competência inicial e pra marcar,
+  no seletor e com um aviso visível, os meses posteriores como "em consolidação".
 
 ## Limitações conhecidas
 
@@ -221,9 +241,15 @@ npm run test:e2e
   "Read and write permissions" habilitado nas configurações de Actions do repositório
   para conseguir commitar o seed atualizado.
 - Os três recursos do dataset regulatório (apurado, limite, compensação) têm cadência
-  de publicação própria, independente do dataset de interrupções — o mês mais recente
-  de compensação pode aparecer com R$ 0 simplesmente porque ainda não foi publicado,
-  não porque não houve compensação naquele mês.
+  de publicação própria, independente do dataset de interrupções — por isso o painel
+  não abre por padrão no mês mais recente disponível, e sim no último mês consolidado
+  (ver "Mês consolidado" acima); meses depois desse aparecem marcados como em
+  consolidação, porque a ANEEL ainda pode não ter publicado tudo.
+- Nosso DEC diverge do valor oficialmente apurado pela ANEEL em ~10% dos
+  conjuntos-mês, concentrado em interrupções de duração extrema — ver "Validação
+  cruzada, com divergência documentada" em Decisões de projeto. Não é um erro de
+  cálculo conhecido, é uma diferença de metodologia não documentada publicamente
+  pela ANEEL.
 
 ## Estrutura do repositório
 
