@@ -32,6 +32,15 @@ export function formatarCompacto(valor: number): string {
   }).format(valor);
 }
 
+export function formatarMoeda(valor: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(valor);
+}
+
 export function formatarPercentual(valor: number): string {
   const sinal = valor > 0 ? '+' : '';
   return `${sinal}${(valor * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;

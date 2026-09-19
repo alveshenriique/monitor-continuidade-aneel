@@ -70,6 +70,10 @@ describe('Indicadores (e2e)', () => {
     expect(Array.isArray(res.body.serie)).toBe(true);
     expect(res.body.serie.length).toBeGreaterThan(0);
     expect(Array.isArray(res.body.causas)).toBe(true);
+    // Enriquecimento regulatório: presente na resposta (pode ser null se o
+    // pipeline rodou sem ingest_continuidade, mas a chave sempre existe).
+    expect(res.body.serie[0]).toHaveProperty('n_conjuntos_acima_limite_dec');
+    expect(res.body.serie[0]).toHaveProperty('compensacao_paga');
   });
 
   it('/indicadores/distribuidoras/:sig (GET) com sigla inexistente retorna 404', () => {
