@@ -30,6 +30,13 @@ perguntas centrais:
 - **Como uma distribuidora está evoluindo** — ao clicar numa linha do ranking, série
   temporal do DEC mês a mês e quebra por causa da interrupção (programada vs.
   não programada, meio ambiente, falha operacional etc.).
+- **Quem descumpriu a lei e quanto pagou por isso** — cruzando com o dataset
+  "Indicadores Coletivos de Continuidade" da ANEEL: quantos conjuntos da
+  distribuidora já ultrapassaram o limite legal de DEC (acumulado no ano, do
+  jeito que o PRODIST apura de verdade) e quanto ela pagou em compensação a
+  consumidores por violação de continuidade. "Piorou 19%" é uma observação;
+  "estourou o limite legal e pagou R$ 3,7 milhões em compensação" é uma
+  constatação com base legal e valor em R$.
 
 O pipeline é reexecutável: consulta a API do catálogo da ANEEL a cada rodada e só
 baixa/reprocessa quando o dado na origem realmente mudou. Isso é o que permite rodar
@@ -38,12 +45,18 @@ serve só uma vez.
 
 ## Fonte de dados
 
-Dados públicos da ANEEL — [Interrupções de Energia Elétrica nas Redes de
-Distribuição](https://dadosabertos.aneel.gov.br), Portal de Dados Abertos, licença
-ODbL. A ANEEL publica um arquivo Parquet por ano de competência, atualizado
-mensalmente; este projeto usa **só o arquivo do ano corrente**, que é o único com
-código de município (IBGE) por interrupção — os anos anteriores têm outro schema, sem
-essa granularidade geográfica, e ficam fora do escopo.
+Dois datasets públicos da ANEEL (Portal de Dados Abertos, licença ODbL):
+
+- [Interrupções de Energia Elétrica nas Redes de
+  Distribuição](https://dadosabertos.aneel.gov.br) — evento a evento, base de tudo
+  (DEC/FEC calculado, mapa, ranking). A ANEEL publica um arquivo Parquet por ano de
+  competência, atualizado mensalmente; este projeto usa **só o arquivo do ano
+  corrente**, único com código de município (IBGE) por interrupção.
+- [Indicadores Coletivos de Continuidade
+  (DEC e FEC)](https://dadosabertos.aneel.gov.br/dataset/indicadores-coletivos-de-continuidade-dec-e-fec)
+  — o valor de DEC/FEC oficialmente apurado pela própria ANEEL, o limite legal por
+  conjunto e a compensação paga aos consumidores por violação. Usado no enriquecimento
+  regulatório (ver Solução e Decisões de projeto).
 
 ## Arquitetura
 
@@ -86,12 +99,13 @@ docker compose --profile backfill run --rm pipeline
 docker compose restart api
 ```
 
-Isso baixa o Parquet do ano corrente (~200 MB) e regenera
-`data/processed/indicadores.duckdb`. Rodar mensalmente esse comando (ou um agendador
-equivalente) é como o painel se mantém atualizado com a publicação da ANEEL — e é
-exatamente isso que o workflow `.github/workflows/backfill-mensal.yml` automatiza: todo
-dia 2 do mês ele baixa o dado mais recente, recalcula os indicadores e commita o seed
-atualizado, sem precisar de intervenção manual.
+Isso baixa o Parquet do ano corrente (~200 MB) e os três recursos do enriquecimento
+regulatório (~110 MB), e regenera `data/processed/indicadores.duckdb`. Rodar
+mensalmente esse comando (ou um agendador equivalente) é como o painel se mantém
+atualizado com a publicação da ANEEL — e é exatamente isso que o workflow
+`.github/workflows/backfill-mensal.yml` automatiza: todo dia 2 do mês ele baixa o dado
+mais recente, recalcula os indicadores e commita o seed atualizado, sem precisar de
+intervenção manual.
 
 ### Desenvolvimento local, sem Docker
 
@@ -100,6 +114,8 @@ atualizado, sem precisar de intervenção manual.
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python -m pipeline.ingest
+python -m pipeline.ingest_continuidade   # opcional — sem isso o painel funciona igual,
+                                          # só sem o resumo de limite legal/compensação
 python -m pipeline.transform
 
 # API (Node 24)
@@ -112,7 +128,8 @@ cd frontend && npm install && npm run dev    # http://localhost:5173
 ### Testes
 
 ```bash
-# Pipeline — DEC/FEC, expurgo, outliers, derivação de UF, etc. (fixture sintética)
+# Pipeline — DEC/FEC, expurgo, outliers, derivação de UF, limite legal (acumulado
+# no ano), filtro dos códigos de compensação, etc. — tudo com fixture sintética
 pip install -r requirements-dev.txt
 pytest
 
@@ -158,6 +175,40 @@ npm run test:e2e
   trunca. Isso chegou a produzir um bug real — município 3550308 (São Paulo capital)
   virava "UF 36" (inexistente) e sumia do mapa e do ranking por estado — pego pelos
   testes do pipeline antes de ir pro ar.
+- **Enriquecimento regulatório é opcional e não quebra o resto**: o pipeline principal
+  funciona sozinho sem o segundo dataset; `python -m pipeline.ingest_continuidade` é
+  um passo à parte, e a API/painel tratam a ausência das tabelas regulatórias
+  mostrando `null` em vez de dar erro. Decisão consciente: no início do projeto, com
+  tudo por construir, cruzar dois datasets era risco demais pra pouco tempo; com o
+  núcleo pronto e testado, esse mesmo cruzamento virou uma camada opcional por cima de
+  uma base que já funciona sozinha — se der problema, ela simplesmente some, o resto
+  do produto continua de pé.
+- **Limite legal é ANUAL, não mensal** — comparar o DEC de um mês isolado contra ele
+  quase nunca estoura (confirmado: 0 transgressões em julho/2026 inteiro comparando
+  mês a mês). A apuração correta, que o PRODIST usa de fato, é o DEC acumulado de
+  janeiro até o mês corrente contra o limite do ano — com isso, 101 de 3.177 conjuntos
+  já estouravam o limite de DEC em 2026, um resultado bem mais plausível. Esse é
+  outro bug que os testes pegaram antes de ir pro ar.
+- **Compensação paga ≠ limite coletivo estourado**: são dois mecanismos regulatórios
+  relacionados, mas diferentes. O limite de DEC/FEC é *coletivo*, por conjunto; a
+  compensação em R$ vem de violações de limites *individuais* por unidade consumidora
+  (DIC/FIC). Na prática, os dados confirmam que são desacoplados — as distribuidoras
+  que mais pagaram compensação em julho/2026 tinham *zero* conjuntos acima do limite
+  coletivo naquele mês. O painel não confunde os dois: mostra "N de M conjuntos acima
+  do limite" e "R$ pago em compensação" como duas informações lado a lado, não uma
+  única "multa".
+- **Filtro cuidadoso dos códigos de compensação**: o dataset bruto usa códigos
+  cifrados (`PGUCBTU`, `PGUCBTUA`, `PGUCBTUT`...) para o mesmo valor em diferentes
+  janelas (mês/trimestre/ano) e para um assunto totalmente diferente (violação de
+  tensão, `PGUCTRP*`). Somar tudo junto multiplicaria o valor exibido por vários — só
+  os 10 códigos "no mês" documentados em `CODIGOS_COMPENSACAO_MENSAL`
+  (`pipeline/transform.py`) entram na soma, conferidos um a um contra o dicionário de
+  dados oficial da ANEEL.
+- **Validação cruzada**: o dataset de indicadores coletivos também traz o DEC/FEC que
+  a própria ANEEL apurou oficialmente (`apurado_oficial_conjunto_mes`). Comparado com
+  o nosso cálculo a partir do dado bruto de interrupções: 99,3% dos conjuntos batem
+  quase exatamente (diferença mediana de 0,003h, correlação de 0,93) — um bom sinal de
+  que a lógica de DEC/FEC está correta.
 
 ## Limitações conhecidas
 
@@ -169,6 +220,10 @@ npm run test:e2e
 - O workflow de backfill mensal (`.github/workflows/backfill-mensal.yml`) depende de
   "Read and write permissions" habilitado nas configurações de Actions do repositório
   para conseguir commitar o seed atualizado.
+- Os três recursos do dataset regulatório (apurado, limite, compensação) têm cadência
+  de publicação própria, independente do dataset de interrupções — o mês mais recente
+  de compensação pode aparecer com R$ 0 simplesmente porque ainda não foi publicado,
+  não porque não houve compensação naquele mês.
 
 ## Estrutura do repositório
 
@@ -179,8 +234,10 @@ monitor-continuidade-aneel/
 ├── requirements.txt         # dependências Python fixadas (runtime)
 ├── requirements-dev.txt     # + pytest, para rodar os testes do pipeline
 ├── pipeline/
-│   ├── ingest.py / transform.py / config.py
-│   └── tests/                # pytest — DEC/FEC, expurgo, outliers, UF etc.
+│   ├── ingest.py               # dataset de interrupções
+│   ├── ingest_continuidade.py  # dataset de limite/apurado/compensação (opcional)
+│   ├── transform.py / config.py
+│   └── tests/                  # pytest — DEC/FEC, expurgo, outliers, UF, limite etc.
 ├── data/
 │   ├── seed/                 # banco pequeno pré-processado, commitado
 │   ├── referencia/            # UFs do IBGE + malha geográfica (GeoJSON)
