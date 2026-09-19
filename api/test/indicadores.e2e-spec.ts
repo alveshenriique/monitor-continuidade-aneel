@@ -19,21 +19,22 @@ describe('Indicadores (e2e)', () => {
     const res = await request(app.getHttpServer()).get(
       '/indicadores/competencias',
     );
-    competencia = res.body[0];
+    competencia = res.body.competencias[0];
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  it('/indicadores/competencias (GET) lista competências no formato YYYY-MM', async () => {
+  it('/indicadores/competencias (GET) lista competências e o mês consolidado', async () => {
     const res = await request(app.getHttpServer())
       .get('/indicadores/competencias')
       .expect(200);
 
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBeGreaterThan(0);
-    expect(res.body[0]).toMatch(/^\d{4}-\d{2}$/);
+    expect(Array.isArray(res.body.competencias)).toBe(true);
+    expect(res.body.competencias.length).toBeGreaterThan(0);
+    expect(res.body.competencias[0]).toMatch(/^\d{4}-\d{2}$/);
+    expect(res.body.mes_consolidado).toMatch(/^\d{4}-\d{2}$/);
   });
 
   it('/indicadores/distribuidoras (GET) sem competência retorna 400', () => {

@@ -34,8 +34,31 @@
 /* Filtros */
 .filtros {
   display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: 16px;
   margin-bottom: 20px;
+}
+
+.aviso-parcial {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--status-warning-bg);
+  border: 1px solid var(--status-warning-border);
+  max-width: 420px;
+}
+
+.aviso-parcial strong {
+  color: var(--status-warning);
+  font-size: 0.8rem;
+}
+
+.aviso-parcial span {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
 .filtro-competencia {

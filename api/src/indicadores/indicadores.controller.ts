@@ -1,12 +1,12 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { IndicadoresService } from './indicadores.service';
+import { IndicadoresService, type CompetenciasResposta } from './indicadores.service';
 
 @Controller('indicadores')
 export class IndicadoresController {
   constructor(private readonly indicadores: IndicadoresService) {}
 
   @Get('competencias')
-  competencias(): Promise<string[]> {
+  competencias(): Promise<CompetenciasResposta> {
     return this.indicadores.competencias();
   }
 

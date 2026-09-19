@@ -36,6 +36,9 @@
   /* Status */
   --status-good: #0ca30c;
   --status-critical: #d03b3b;
+  --status-warning: #8a5a00;
+  --status-warning-bg: rgba(250, 178, 25, 0.14);
+  --status-warning-border: rgba(250, 178, 25, 0.45);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -68,6 +71,9 @@
 
     --status-good: #0ca30c;
     --status-critical: #e66767;
+    --status-warning: #fab219;
+    --status-warning-bg: rgba(250, 178, 25, 0.14);
+    --status-warning-border: rgba(250, 178, 25, 0.4);
   }
 }
 
@@ -100,6 +106,9 @@
 
   --status-good: #0ca30c;
   --status-critical: #e66767;
+  --status-warning: #fab219;
+  --status-warning-bg: rgba(250, 178, 25, 0.14);
+  --status-warning-border: rgba(250, 178, 25, 0.4);
 }
 
 * {

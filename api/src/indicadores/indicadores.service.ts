@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DatabaseService } from '../database/database.service';
+import { MES_CONSOLIDADO } from '../config';
 
 const REGEX_COMPETENCIA = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -77,6 +78,12 @@ export interface DistribuidoraUfRow {
   variacao_pct: number | null;
 }
 
+export interface CompetenciasResposta {
+  competencias: string[];
+  /** Ver api/src/config.ts — meses depois deste ainda podem estar parciais. */
+  mes_consolidado: string;
+}
+
 @Injectable()
 export class IndicadoresService {
   private regulatorioDisponivel: Promise<boolean> | null = null;
@@ -110,14 +117,22 @@ export class IndicadoresService {
     return competencia;
   }
 
-  /** Lista as competências (meses) disponíveis, da mais recente para a mais antiga. */
-  async competencias(): Promise<string[]> {
+  /**
+   * Lista as competências (meses) disponíveis, da mais recente para a mais
+   * antiga, junto com o último mês consolidado — é a partir dessa resposta
+   * que o painel decide em qual mês abrir por padrão e quais marcar como
+   * "em consolidação" no seletor.
+   */
+  async competencias(): Promise<CompetenciasResposta> {
     const rows = await this.db.query<{ competencia: string }>(
       `SELECT DISTINCT strftime(competencia, '%Y-%m') AS competencia
        FROM distribuidora_mes
        ORDER BY competencia DESC`,
     );
-    return rows.map((r) => r.competencia);
+    return {
+      competencias: rows.map((r) => r.competencia),
+      mes_consolidado: MES_CONSOLIDADO,
+    };
   }
 
   /**

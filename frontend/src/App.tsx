@@ -9,6 +9,7 @@ import './App.css';
 
 export default function App() {
   const [competencias, setCompetencias] = useState<string[]>([]);
+  const [mesConsolidado, setMesConsolidado] = useState<string>('');
   const [competencia, setCompetencia] = useState<string>('');
   const [malha, setMalha] = useState<MalhaGeoJson | null>(null);
   const [mapa, setMapa] = useState<MapaUf[]>([]);
@@ -18,12 +19,19 @@ export default function App() {
   const [selecionada, setSelecionada] = useState<DistribuidoraRanking | null>(null);
   const [ufSelecionada, setUfSelecionada] = useState<MapaUf | null>(null);
 
-  // Carrega competências e malha geográfica uma única vez.
+  const competenciaEmConsolidacao = Boolean(
+    competencia && mesConsolidado && competencia > mesConsolidado,
+  );
+
+  // Carrega competências e malha geográfica uma única vez. Abre por padrão no
+  // último mês consolidado pela ANEEL, não no mais recente disponível — os
+  // meses mais novos costumam vir parciais (ver CompetenciaSelector).
   useEffect(() => {
     Promise.all([api.competencias(), api.malha()])
-      .then(([lista, geo]) => {
+      .then(([{ competencias: lista, mes_consolidado }, geo]) => {
         setCompetencias(lista);
-        setCompetencia(lista[0] ?? '');
+        setMesConsolidado(mes_consolidado);
+        setCompetencia(lista.includes(mes_consolidado) ? mes_consolidado : (lista[0] ?? ''));
         setMalha(geo);
       })
       .catch((e: Error) => setErro(e.message));
@@ -67,8 +75,18 @@ export default function App() {
           <CompetenciaSelector
             competencias={competencias}
             selecionada={competencia}
+            mesConsolidado={mesConsolidado}
             onSelecionar={setCompetencia}
           />
+        )}
+        {competenciaEmConsolidacao && (
+          <div className="aviso-parcial" role="status">
+            <strong>Em consolidação pela ANEEL</strong>
+            <span>
+              Este mês ainda está sendo apurado na origem — os números aqui podem
+              subir conforme a ANEEL publica o restante do período.
+            </span>
+          </div>
         )}
       </div>
 

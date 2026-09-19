@@ -3,10 +3,11 @@ import { formatarCompetenciaLonga } from '../format';
 interface Props {
   competencias: string[];
   selecionada: string;
+  mesConsolidado: string;
   onSelecionar: (competencia: string) => void;
 }
 
-export function CompetenciaSelector({ competencias, selecionada, onSelecionar }: Props) {
+export function CompetenciaSelector({ competencias, selecionada, mesConsolidado, onSelecionar }: Props) {
   return (
     <label className="filtro-competencia">
       <span>Competência</span>
@@ -17,6 +18,7 @@ export function CompetenciaSelector({ competencias, selecionada, onSelecionar }:
         {competencias.map((c) => (
           <option key={c} value={c}>
             {formatarCompetenciaLonga(c)}
+            {mesConsolidado && c > mesConsolidado ? ' — em consolidação' : ''}
           </option>
         ))}
       </select>
