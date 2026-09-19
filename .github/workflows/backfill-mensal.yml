@@ -31,6 +31,7 @@ jobs:
       - name: Rodar pipeline (ingest + transform)
         run: |
           python -m pipeline.ingest
+          python -m pipeline.ingest_continuidade
           python -m pipeline.transform
 
       - name: Atualizar o seed pré-processado
