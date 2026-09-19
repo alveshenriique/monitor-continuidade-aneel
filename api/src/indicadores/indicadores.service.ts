@@ -42,6 +42,13 @@ export interface SerieRow {
   fec_ponderado: number;
   n_interrupcoes: number;
   consumidor_hora: number;
+  // Enriquecimento regulatório (dataset "Indicadores Coletivos de
+  // Continuidade" da ANEEL) — null quando o pipeline rodou sem
+  // `ingest_continuidade`, pra não quebrar quem não baixou esse dataset.
+  n_conjuntos_avaliados: number | null;
+  n_conjuntos_acima_limite_dec: number | null;
+  n_conjuntos_acima_limite_fec: number | null;
+  compensacao_paga: number | null;
 }
 
 export interface CausaRow {
@@ -72,7 +79,27 @@ export interface DistribuidoraUfRow {
 
 @Injectable()
 export class IndicadoresService {
+  private regulatorioDisponivel: Promise<boolean> | null = null;
+
   constructor(private readonly db: DatabaseService) {}
+
+  /**
+   * O enriquecimento regulatório é opcional (depende de
+   * `python -m pipeline.ingest_continuidade` ter rodado). Checa uma vez se a
+   * tabela existe e reaproveita o resultado, em vez de arriscar uma query
+   * falhar por tabela ausente a cada request.
+   */
+  private async temTabelaRegulatorio(): Promise<boolean> {
+    if (!this.regulatorioDisponivel) {
+      this.regulatorioDisponivel = this.db
+        .query<{ existe: boolean }>(
+          `SELECT count(*) > 0 AS existe FROM information_schema.tables
+           WHERE table_name = 'regulatorio_distribuidora_mes'`,
+        )
+        .then((rows) => rows[0]?.existe ?? false);
+    }
+    return this.regulatorioDisponivel;
+  }
 
   private validarCompetencia(competencia: string | undefined): string {
     if (!competencia || !REGEX_COMPETENCIA.test(competencia)) {
@@ -130,12 +157,26 @@ export class IndicadoresService {
 
   /** Série temporal do DEC/FEC e quebra por causa de uma distribuidora. */
   async distribuidoraDetalhe(sig: string) {
+    const comRegulatorio = await this.temTabelaRegulatorio();
     const serie = await this.db.query<SerieRow>(
-      `SELECT strftime(competencia, '%Y-%m') AS competencia,
-              dec_ponderado, fec_ponderado, n_interrupcoes, consumidor_hora
-       FROM distribuidora_mes
-       WHERE sig_agente = ?
-       ORDER BY competencia`,
+      comRegulatorio
+        ? `SELECT strftime(d.competencia, '%Y-%m') AS competencia,
+                  d.dec_ponderado, d.fec_ponderado, d.n_interrupcoes, d.consumidor_hora,
+                  r.n_conjuntos AS n_conjuntos_avaliados,
+                  r.n_conjuntos_acima_limite_dec, r.n_conjuntos_acima_limite_fec,
+                  r.compensacao_paga
+           FROM distribuidora_mes d
+           LEFT JOIN regulatorio_distribuidora_mes r
+                  ON d.sig_agente = r.sig_agente AND d.competencia = r.competencia
+           WHERE d.sig_agente = ?
+           ORDER BY d.competencia`
+        : `SELECT strftime(competencia, '%Y-%m') AS competencia,
+                  dec_ponderado, fec_ponderado, n_interrupcoes, consumidor_hora,
+                  NULL AS n_conjuntos_avaliados, NULL AS n_conjuntos_acima_limite_dec,
+                  NULL AS n_conjuntos_acima_limite_fec, NULL AS compensacao_paga
+           FROM distribuidora_mes
+           WHERE sig_agente = ?
+           ORDER BY competencia`,
       [sig],
     );
     if (serie.length === 0) {

@@ -4,6 +4,7 @@ import { LineChartDec } from './LineChartDec';
 import { CausasBars } from './CausasBars';
 import { Modal } from './Modal';
 import { CabecalhoModal } from './CabecalhoModal';
+import { ResumoRegulatorio } from './ResumoRegulatorio';
 
 interface Props {
   sig: string;
@@ -31,16 +32,19 @@ export function Drilldown({ sig, nome, onFechar }: Props) {
         {!erro && !detalhe && <p className="texto-muted">Carregando…</p>}
 
         {detalhe && (
-          <div className="drilldown-grid">
-            <div>
-              <h3>DEC ponderado por mês</h3>
-              <LineChartDec serie={detalhe.serie} />
+          <>
+            <ResumoRegulatorio serie={detalhe.serie} />
+            <div className="drilldown-grid">
+              <div>
+                <h3>DEC ponderado por mês</h3>
+                <LineChartDec serie={detalhe.serie} />
+              </div>
+              <div>
+                <h3>Causas em todo o histórico</h3>
+                <CausasBars causas={detalhe.causas} />
+              </div>
             </div>
-            <div>
-              <h3>Causas em todo o histórico</h3>
-              <CausasBars causas={detalhe.causas} />
-            </div>
-          </div>
+          </>
         )}
       </div>
     </Modal>

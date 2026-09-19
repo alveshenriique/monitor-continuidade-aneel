@@ -19,6 +19,11 @@ export interface SerieMensal {
   fec_ponderado: number;
   n_interrupcoes: number;
   consumidor_hora: number;
+  // Enriquecimento regulatório — null se o pipeline rodou sem ingest_continuidade.
+  n_conjuntos_avaliados: number | null;
+  n_conjuntos_acima_limite_dec: number | null;
+  n_conjuntos_acima_limite_fec: number | null;
+  compensacao_paga: number | null;
 }
 
 export interface CausaMensal {
