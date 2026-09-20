@@ -1,0 +1,62 @@
+name: Testes
+
+# Roda a suíte de testes do pipeline (pytest) e da API (Jest) a cada push e
+# pull request em main. Não faz deploy nem escreve no repositório — só
+# valida. Ver .github/workflows/backfill-mensal.yml para o workflow que
+# atualiza dados.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pipeline:
+    name: Pipeline (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # O teste de validação cruzada do DEC (test_validacao_oficial.py) só
+      # roda de verdade se data/seed/indicadores.duckdb vier no checkout —
+      # senão ele cai em pytest.skip e a checagem não valida nada. Falha aqui
+      # de propósito, alto e claro, em vez de deixar passar em silêncio.
+      - name: Conferir que o seed pré-processado veio no checkout
+        run: |
+          test -f data/seed/indicadores.duckdb || {
+            echo "::error::data/seed/indicadores.duckdb não veio no checkout — test_validacao_oficial.py rodaria em modo skip. Confira se o arquivo continua versionado (ver .gitignore, regra '!data/seed/**')."
+            exit 1
+          }
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Instalar dependências (runtime + teste)
+        run: pip install -r requirements-dev.txt
+
+      - name: Rodar pytest
+        run: pytest -v
+
+  api:
+    name: API (Jest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: api/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Rodar testes
+        run: npm test
