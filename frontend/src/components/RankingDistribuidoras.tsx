@@ -13,9 +13,9 @@ export function RankingDistribuidoras({ dados, selecionada, onSelecionar }: Prop
     <div className="cartao">
       <h2>Quem piorou no mês</h2>
       <p className="subtitulo">
-        Variação do DEC ponderado, a média de horas de interrupção por consumidor, em
-        relação à média das competências anteriores. Ordenado do que mais piorou para o
-        que mais melhorou.
+        Ordenado pelo DEC ponderado, a média de horas de interrupção por consumidor, do
+        pior para o melhor no mês. A variação em relação à média das competências
+        anteriores aparece ao lado, como informação complementar.
       </p>
       <div className="tabela-scroll">
         <table className="tabela-ranking">

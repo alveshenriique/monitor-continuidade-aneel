@@ -122,12 +122,17 @@ describe('Indicadores (e2e)', () => {
 
     expect(res.body.uf).toBe(uf);
     expect(Array.isArray(res.body.distribuidoras)).toBe(true);
+    // Ranking é limitado às 10 maiores por participação (ver TOP_N_RANKING_UF
+    // em api/src/config.ts) — não é mais a lista completa de atuantes na UF,
+    // então a soma das participações exibidas não precisa mais fechar em 100%.
+    expect(res.body.distribuidoras.length).toBeLessThanOrEqual(10);
     if (res.body.distribuidoras.length > 0) {
       const soma = res.body.distribuidoras.reduce(
         (acc: number, d: { participacao: number }) => acc + d.participacao,
         0,
       );
-      expect(soma).toBeCloseTo(1, 5);
+      expect(soma).toBeGreaterThan(0);
+      expect(soma).toBeLessThanOrEqual(1 + 1e-9);
     }
   });
 

@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DatabaseService } from '../database/database.service';
-import { MES_CONSOLIDADO } from '../config';
+import { MES_CONSOLIDADO, TOP_N_RANKING_UF } from '../config';
 
 const REGEX_COMPETENCIA = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -165,7 +165,7 @@ export class IndicadoresService {
               END AS variacao_pct
        FROM atual a
        LEFT JOIN anteriores p USING (sig_agente)
-       ORDER BY variacao_pct DESC NULLS LAST`,
+       ORDER BY a.dec_ponderado DESC, a.consumidor_hora DESC, a.sig_agente`,
       [comp, comp],
     );
   }
@@ -253,6 +253,11 @@ export class IndicadoresService {
    * (consumidores ativos) é do conjunto, que pode cruzar mais de uma UF, então
    * não existe um "ativos" isolado e correto por UF para dividir — consumidor-
    * hora é aditivo e não tem esse problema.
+   *
+   * Limitado a TOP_N_RANKING_UF por participação (ver config.ts) — só a
+   * exibição é cortada; `participacao` é a window function sobre todas as
+   * linhas de `atual`, calculada antes do LIMIT, então o percentual mostrado
+   * continua sendo a fatia real no consumidor-hora total do estado.
    */
   async distribuidorasPorUf(ufSigla: string, competencia: string | undefined) {
     const comp = this.validarCompetencia(competencia);
@@ -289,7 +294,8 @@ export class IndicadoresService {
               END AS variacao_pct
        FROM atual a
        LEFT JOIN anteriores p USING (sig_agente)
-       ORDER BY variacao_pct DESC NULLS LAST`,
+       ORDER BY a.consumidor_hora DESC, a.sig_agente
+       LIMIT ${TOP_N_RANKING_UF}`,
       [uf.codigo, comp, uf.codigo, comp],
     );
 

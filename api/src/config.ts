@@ -16,3 +16,14 @@
  * tudo). Ver README, seção "Limitações conhecidas".
  */
 export const MES_CONSOLIDADO = '2026-06';
+
+/**
+ * Quantas distribuidoras o ranking por UF (`/indicadores/mapa/:uf/distribuidoras`)
+ * exibe no máximo, ordenadas por participação no estado. Qualquer
+ * distribuidora com ao menos uma interrupção na UF entra no cálculo, mas
+ * presenças residuais (ex.: uma distribuidora de outro estado que atende só
+ * um município de divisa, com participação perto de zero) não são
+ * "distribuidoras do estado" — é um teto de exibição, não de dado: estados
+ * com menos de N distribuidoras mostram todas as que houver.
+ */
+export const TOP_N_RANKING_UF = 10;
