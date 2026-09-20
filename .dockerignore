@@ -4,8 +4,3 @@ __pycache__
 *.pyc
 data/raw
 data/processed
-api/node_modules
-api/dist
-frontend/node_modules
-frontend/dist
-scripts

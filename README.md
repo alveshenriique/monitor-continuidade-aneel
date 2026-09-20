@@ -223,9 +223,9 @@ Demais decisões, mais operacionais:
 - **UF é derivada matematicamente**, não por join: os dois primeiros dígitos do
   código IBGE do município já são o código da UF (convenção do próprio IBGE), então
   não foi preciso importar nem juntar uma tabela de 5.571 municípios; só uma tabela
-  estática de 27 UFs (`data/referencia/ufs.json`) pra exibir nome/região.
+  estática de 27 UFs (`data/reference/ufs.json`) pra exibir nome/região.
 - **Malha geográfica e projeção do mapa escritos à mão**: GeoJSON de UFs do IBGE
-  (`data/referencia/malha_uf.geojson`) + projeção equirretangular simples
+  (`data/reference/malha_uf.geojson`) + projeção equirretangular simples
   (`frontend/src/geo.ts`), suficiente pra esse choropleth, sem precisar de uma lib
   como d3-geo.
 - **Interrupções com expurgo regulatório são excluídas** do cálculo (situação de
@@ -297,7 +297,7 @@ monitor-continuidade-aneel/
 │   └── tests/                  # pytest — DEC/FEC, expurgo, outliers, UF, limite etc.
 ├── data/
 │   ├── seed/                 # banco pequeno pré-processado, commitado
-│   ├── referencia/            # UFs do IBGE + malha geográfica (GeoJSON)
+│   ├── reference/             # UFs do IBGE + malha geográfica (GeoJSON)
 │   ├── raw/                  # Parquet baixado da ANEEL (não versionado)
 │   └── processed/            # indicadores.duckdb gerado pelo pipeline (não versionado)
 ├── api/                     # NestJS — lê indicadores.duckdb, serve a API

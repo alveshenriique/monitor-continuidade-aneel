@@ -14,12 +14,12 @@ interface Uf {
   regiao_nome: string;
 }
 
-const REFERENCIA_DIR = resolve(__dirname, '..', '..', '..', 'data', 'referencia');
+const REFERENCE_DIR = resolve(__dirname, '..', '..', '..', 'data', 'reference');
 
 /** UF é derivada dos dois primeiros dígitos do código IBGE do município
  * (convenção do próprio IBGE: código do município = código da UF + sufixo). */
 const ufs: Uf[] = JSON.parse(
-  readFileSync(resolve(REFERENCIA_DIR, 'ufs.json'), 'utf-8'),
+  readFileSync(resolve(REFERENCE_DIR, 'ufs.json'), 'utf-8'),
 );
 const UF_POR_CODIGO = new Map(ufs.map((uf) => [uf.codigo, uf]));
 const UF_POR_SIGLA = new Map(ufs.map((uf) => [uf.sigla.toUpperCase(), uf]));
@@ -305,7 +305,7 @@ export class IndicadoresService {
   /** Malha geográfica (GeoJSON) das UFs, servida como veio do IBGE — estática. */
   malhaUf(): unknown {
     return JSON.parse(
-      readFileSync(resolve(REFERENCIA_DIR, 'malha_uf.geojson'), 'utf-8'),
+      readFileSync(resolve(REFERENCE_DIR, 'malha_uf.geojson'), 'utf-8'),
     );
   }
 }
