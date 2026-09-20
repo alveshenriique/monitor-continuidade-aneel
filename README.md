@@ -1,9 +1,32 @@
 # Monitor de Continuidade — Distribuidoras de Energia (ANEEL)
 
+[![Testes](https://github.com/alveshenriique/monitor-continuidade-aneel/actions/workflows/testes.yml/badge.svg)](https://github.com/alveshenriique/monitor-continuidade-aneel/actions/workflows/testes.yml)
+[![License: MIT](https://img.shields.io/github/license/alveshenriique/monitor-continuidade-aneel)](LICENSE)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
+![Node 24](https://img.shields.io/badge/node-24-green)
+
 Painel que mostra **onde o fornecimento de energia está piorando no Brasil e qual
 distribuidora é responsável**, a partir dos dados públicos de interrupções da ANEEL —
 e que se atualiza sozinho a cada publicação mensal da Agência, em vez de ser uma
 análise pontual.
+
+<!-- TODO: substituir por screenshot/GIF real do painel -->
+![Screenshot do painel](docs/screenshot.png)
+
+## TL;DR
+
+- **Stack**: pipeline (Python + DuckDB) → API (NestJS) → painel (React), tudo
+  orquestrado com Docker Compose.
+- **Rodar**: `docker compose up` → painel em [localhost:8080](http://localhost:8080).
+- **Destaques**:
+  - DEC/FEC calculado do dado bruto de interrupções e validado contra o valor
+    oficialmente apurado pela ANEEL (~90% de concordância — ver Decisões de projeto).
+  - Cruza dois datasets oficiais da ANEEL (interrupções + indicadores coletivos) pra
+    mostrar não só quem piorou, mas quem estourou o limite legal e quanto pagou em
+    compensação.
+  - Testes automatizados (pytest + Jest) rodando em CI a cada push/PR.
+  - Pipeline idempotente e backfill mensal automatizado via GitHub Actions, sem
+    intervenção manual.
 
 ## Problema
 
@@ -105,7 +128,10 @@ mensalmente esse comando (ou um agendador equivalente) é como o painel se mant�
 atualizado com a publicação da ANEEL — e é exatamente isso que o workflow
 `.github/workflows/backfill-mensal.yml` automatiza: todo dia 2 do mês ele baixa o dado
 mais recente, recalcula os indicadores e commita o seed atualizado, sem precisar de
-intervenção manual.
+intervenção manual. (Nota técnica: esse workflow precisa de "Read and write
+permissions" habilitado em Settings > Actions > General > Workflow permissions do
+repositório, senão o `git push` do backfill falha — é configuração de repositório, a
+fazer uma vez, não uma limitação do projeto.)
 
 ### Desenvolvimento local, sem Docker
 
@@ -129,7 +155,8 @@ cd frontend && npm install && npm run dev    # http://localhost:5173
 
 ```bash
 # Pipeline — DEC/FEC, expurgo, outliers, derivação de UF, limite legal (acumulado
-# no ano), filtro dos códigos de compensação, etc. — tudo com fixture sintética
+# no ano), filtro dos códigos de compensação, validação cruzada com o DEC oficial
+# da ANEEL, etc.
 pip install -r requirements-dev.txt
 pytest
 
@@ -141,69 +168,9 @@ npm run test:e2e
 
 ## Decisões de projeto
 
-- **DEC/FEC calculados no grão do conjunto de unidades consumidoras**, não da
-  distribuidora — é o denominador correto (total de consumidores ativos daquele
-  conjunto), conforme o Módulo 8 do PRODIST. O DEC por distribuidora é a média dos
-  conjuntos ponderada por consumidores, não uma média simples.
-- **Consumidor-hora perdido** (afetados × duração) é usado como métrica de impacto no
-  mapa e no ranking por UF, em vez do DEC. Motivo: o DEC precisa de um denominador
-  (consumidores ativos) atribuível à área em questão, mas um conjunto de unidades
-  consumidoras cruza em média ~8,6 municípios — logo pode cruzar mais de uma UF — e
-  não existe um "ativos" isolado e correto por UF pra dividir. Consumidor-hora é
-  aditivo e não tem esse problema, então é a métrica honesta pra essas duas visões.
-- **UF é derivada matematicamente**, não por join: os dois primeiros dígitos do
-  código IBGE do município já são o código da UF (convenção do próprio IBGE), então
-  não foi preciso importar nem juntar uma tabela de 5.571 municípios — só uma tabela
-  estática de 27 UFs (`data/referencia/ufs.json`) pra exibir nome/região.
-- **Malha geográfica e projeção do mapa escritos à mão**: o GeoJSON das UFs vem do
-  IBGE (`data/referencia/malha_uf.geojson`); a projeção lon/lat → SVG é uma
-  equirretangular simples (`frontend/src/geo.ts`), suficiente pra um choropleth
-  nessa escala e sem precisar de uma lib como d3-geo.
-- **Interrupções com expurgo regulatório são excluídas** do cálculo (situação de
-  emergência, dia crítico, falha na instalação do consumidor etc.) — só as marcadas
-  "Não houve Expurgo" (~75% do dado) compõem os indicadores de continuidade oficiais.
-- **Programada vs. não programada**: cada causa de interrupção carrega essa
-  classificação da própria ANEEL (`DscFatoGeradorTipo`). Programada é a distribuidora
-  agendando uma parada (manutenção, obra); não programada é forçada por algo
-  inesperado (clima, falha, terceiros). Ajuda a separar o que é escolha de gestão da
-  distribuidora do que é evento externo.
-- **Seed commitado** (`data/seed/indicadores.duckdb`) pra o `docker compose up`
-  funcionar de primeira — o Parquet bruto (~200 MB) não é versionado; o backfill
-  completo é um comando à parte, não bloqueia o boot.
-- **Divisão inteira explícita (`//`) pra derivar a UF**, não `CAST(x / 100000 AS
-  INTEGER)`: o `/` do DuckDB faz divisão real e o `CAST` pra inteiro *arredonda*, não
-  trunca. Isso chegou a produzir um bug real — município 3550308 (São Paulo capital)
-  virava "UF 36" (inexistente) e sumia do mapa e do ranking por estado — pego pelos
-  testes do pipeline antes de ir pro ar.
-- **Enriquecimento regulatório é opcional e não quebra o resto**: o pipeline principal
-  funciona sozinho sem o segundo dataset; `python -m pipeline.ingest_continuidade` é
-  um passo à parte, e a API/painel tratam a ausência das tabelas regulatórias
-  mostrando `null` em vez de dar erro. Decisão consciente: no início do projeto, com
-  tudo por construir, cruzar dois datasets era risco demais pra pouco tempo; com o
-  núcleo pronto e testado, esse mesmo cruzamento virou uma camada opcional por cima de
-  uma base que já funciona sozinha — se der problema, ela simplesmente some, o resto
-  do produto continua de pé.
-- **Limite legal é ANUAL, não mensal** — comparar o DEC de um mês isolado contra ele
-  quase nunca estoura (confirmado: 0 transgressões em julho/2026 inteiro comparando
-  mês a mês). A apuração correta, que o PRODIST usa de fato, é o DEC acumulado de
-  janeiro até o mês corrente contra o limite do ano — com isso, 101 de 3.177 conjuntos
-  já estouravam o limite de DEC em 2026, um resultado bem mais plausível. Esse é
-  outro bug que os testes pegaram antes de ir pro ar.
-- **Compensação paga ≠ limite coletivo estourado**: são dois mecanismos regulatórios
-  relacionados, mas diferentes. O limite de DEC/FEC é *coletivo*, por conjunto; a
-  compensação em R$ vem de violações de limites *individuais* por unidade consumidora
-  (DIC/FIC). Na prática, os dados confirmam que são desacoplados — as distribuidoras
-  que mais pagaram compensação em julho/2026 tinham *zero* conjuntos acima do limite
-  coletivo naquele mês. O painel não confunde os dois: mostra "N de M conjuntos acima
-  do limite" e "R$ pago em compensação" como duas informações lado a lado, não uma
-  única "multa".
-- **Filtro cuidadoso dos códigos de compensação**: o dataset bruto usa códigos
-  cifrados (`PGUCBTU`, `PGUCBTUA`, `PGUCBTUT`...) para o mesmo valor em diferentes
-  janelas (mês/trimestre/ano) e para um assunto totalmente diferente (violação de
-  tensão, `PGUCTRP*`). Somar tudo junto multiplicaria o valor exibido por vários — só
-  os 10 códigos "no mês" documentados em `CODIGOS_COMPENSACAO_MENSAL`
-  (`pipeline/transform.py`) entram na soma, conferidos um a um contra o dicionário de
-  dados oficial da ANEEL.
+As quatro decisões abaixo tiveram mais impacto no projeto — bateram diretamente na
+correção dos indicadores ou pegaram bugs reais antes de irem pro ar.
+
 - **Validação cruzada, com divergência documentada**: o dataset de indicadores
   coletivos também traz o DEC/FEC que a própria ANEEL apurou oficialmente
   (`apurado_oficial_conjunto_mes`). Comparado com o nosso cálculo a partir do dado
@@ -219,7 +186,74 @@ npm run test:e2e
   teto artificial só para forçar concordância com o oficial. O painel usa nosso
   cálculo (`dec`, `dec_ponderado`) como indicador primário; o valor oficial
   (`dec_oficial`) existe no banco só para essa validação cruzada, não é exibido
-  como se fosse igual ao nosso.
+  como se fosse igual ao nosso. Essa validação também virou um teste automatizado
+  (`pipeline/tests/test_validacao_oficial.py`), rodando em CI.
+- **Limite legal é ANUAL, não mensal** — comparar o DEC de um mês isolado contra ele
+  quase nunca estoura (confirmado: 0 transgressões em julho/2026 inteiro comparando
+  mês a mês). A apuração correta, que o PRODIST usa de fato, é o DEC acumulado de
+  janeiro até o mês corrente contra o limite do ano — com isso, 101 de 3.177 conjuntos
+  já estouravam o limite de DEC em 2026, um resultado bem mais plausível. Esse é
+  outro bug que os testes pegaram antes de ir pro ar.
+- **Divisão inteira explícita (`//`) pra derivar a UF**, não `CAST(x / 100000 AS
+  INTEGER)`: o `/` do DuckDB faz divisão real e o `CAST` pra inteiro *arredonda*, não
+  trunca. Isso chegou a produzir um bug real — município 3550308 (São Paulo capital)
+  virava "UF 36" (inexistente) e sumia do mapa e do ranking por estado — pego pelos
+  testes do pipeline antes de ir pro ar.
+- **Compensação paga ≠ limite coletivo estourado**: são dois mecanismos regulatórios
+  relacionados, mas diferentes. O limite de DEC/FEC é *coletivo*, por conjunto; a
+  compensação em R$ vem de violações de limites *individuais* por unidade consumidora
+  (DIC/FIC). Na prática, os dados confirmam que são desacoplados — as distribuidoras
+  que mais pagaram compensação em julho/2026 tinham *zero* conjuntos acima do limite
+  coletivo naquele mês. O painel não confunde os dois: mostra "N de M conjuntos acima
+  do limite" e "R$ pago em compensação" como duas informações lado a lado, não uma
+  única "multa".
+
+Demais decisões, mais operacionais:
+
+- **DEC/FEC calculados no grão do conjunto de unidades consumidoras**, não da
+  distribuidora — é o denominador correto (total de consumidores ativos daquele
+  conjunto), conforme o Módulo 8 do PRODIST. O DEC por distribuidora é a média dos
+  conjuntos ponderada por consumidores, não uma média simples.
+- **Consumidor-hora perdido** (afetados × duração) é usado como métrica de impacto no
+  mapa e no ranking por UF, em vez do DEC. Motivo: o DEC precisa de um denominador
+  (consumidores ativos) atribuível à área em questão, mas um conjunto de unidades
+  consumidoras cruza em média ~8,6 municípios — logo pode cruzar mais de uma UF — e
+  não existe um "ativos" isolado e correto por UF pra dividir. Consumidor-hora é
+  aditivo e não tem esse problema, então é a métrica honesta pra essas duas visões.
+- **UF é derivada matematicamente**, não por join: os dois primeiros dígitos do
+  código IBGE do município já são o código da UF (convenção do próprio IBGE), então
+  não foi preciso importar nem juntar uma tabela de 5.571 municípios — só uma tabela
+  estática de 27 UFs (`data/referencia/ufs.json`) pra exibir nome/região.
+- **Malha geográfica e projeção do mapa escritos à mão**: GeoJSON de UFs do IBGE
+  (`data/referencia/malha_uf.geojson`) + projeção equirretangular simples
+  (`frontend/src/geo.ts`) — suficiente pra esse choropleth, sem precisar de uma lib
+  como d3-geo.
+- **Interrupções com expurgo regulatório são excluídas** do cálculo (situação de
+  emergência, dia crítico, falha na instalação do consumidor etc.) — só as marcadas
+  "Não houve Expurgo" (~75% do dado) compõem os indicadores de continuidade oficiais.
+- **Programada vs. não programada**: cada causa de interrupção carrega essa
+  classificação da própria ANEEL (`DscFatoGeradorTipo`). Programada é a distribuidora
+  agendando uma parada (manutenção, obra); não programada é forçada por algo
+  inesperado (clima, falha, terceiros). Ajuda a separar o que é escolha de gestão da
+  distribuidora do que é evento externo.
+- **Seed commitado** (`data/seed/indicadores.duckdb`) pra `docker compose up`
+  funcionar de primeira, sem baixar o Parquet bruto (~200 MB, não versionado) — o
+  backfill completo é comando à parte e não bloqueia o boot.
+- **Enriquecimento regulatório é opcional e não quebra o resto**: o pipeline principal
+  funciona sozinho sem o segundo dataset; `python -m pipeline.ingest_continuidade` é
+  um passo à parte, e a API/painel tratam a ausência das tabelas regulatórias
+  mostrando `null` em vez de dar erro. Decisão consciente: no início do projeto, com
+  tudo por construir, cruzar dois datasets era risco demais pra pouco tempo; com o
+  núcleo pronto e testado, esse mesmo cruzamento virou uma camada opcional por cima de
+  uma base que já funciona sozinha — se der problema, ela simplesmente some, o resto
+  do produto continua de pé.
+- **Filtro cuidadoso dos códigos de compensação**: o dataset bruto usa códigos
+  cifrados (`PGUCBTU`, `PGUCBTUA`, `PGUCBTUT`...) para o mesmo valor em diferentes
+  janelas (mês/trimestre/ano) e para um assunto totalmente diferente (violação de
+  tensão, `PGUCTRP*`). Somar tudo junto multiplicaria o valor exibido por vários — só
+  os 10 códigos "no mês" documentados em `CODIGOS_COMPENSACAO_MENSAL`
+  (`pipeline/transform.py`) entram na soma, conferidos um a um contra o dicionário de
+  dados oficial da ANEEL.
 - **Mês consolidado**: os três recursos do dataset regulatório vêm com o mês mais
   recente tipicamente incompleto (ex.: compensação de um mês pode aparecer com
   poucos registros, ou zerada, simplesmente porque a ANEEL ainda não terminou de
@@ -237,9 +271,6 @@ npm run test:e2e
   impacto agregado disso é pequeno o bastante pra não distorcer o resultado.
 - Não há indicador de DEC por UF (ver decisões de projeto acima) — só consumidor-hora
   e sua variação mês a mês.
-- O workflow de backfill mensal (`.github/workflows/backfill-mensal.yml`) depende de
-  "Read and write permissions" habilitado nas configurações de Actions do repositório
-  para conseguir commitar o seed atualizado.
 - Os três recursos do dataset regulatório (apurado, limite, compensação) têm cadência
   de publicação própria, independente do dataset de interrupções — por isso o painel
   não abre por padrão no mês mais recente disponível, e sim no último mês consolidado
@@ -255,7 +286,7 @@ npm run test:e2e
 
 ```
 monitor-continuidade-aneel/
-├── .github/workflows/       # backfill mensal agendado (GitHub Actions)
+├── .github/workflows/       # testes (pytest + Jest) em CI e backfill mensal agendado
 ├── docker-compose.yml       # orquestra seed + api + web (+ pipeline sob demanda)
 ├── requirements.txt         # dependências Python fixadas (runtime)
 ├── requirements-dev.txt     # + pytest, para rodar os testes do pipeline
