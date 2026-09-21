@@ -170,8 +170,13 @@ export class IndicadoresService {
     );
   }
 
-  /** Série temporal do DEC/FEC e quebra por causa de uma distribuidora. */
-  async distribuidoraDetalhe(sig: string) {
+  /**
+   * Série temporal do DEC/FEC e quebra por causa de uma distribuidora, de
+   * janeiro até a competência selecionada — o mesmo recorte "jan-X" que o
+   * mapa e o ranking já respeitam, pra o seletor valer pra tela inteira.
+   */
+  async distribuidoraDetalhe(sig: string, competencia: string | undefined) {
+    const comp = this.validarCompetencia(competencia);
     const comRegulatorio = await this.temTabelaRegulatorio();
     const serie = await this.db.query<SerieRow>(
       comRegulatorio
@@ -184,6 +189,8 @@ export class IndicadoresService {
            LEFT JOIN regulatorio_distribuidora_mes r
                   ON d.sig_agente = r.sig_agente AND d.competencia = r.competencia
            WHERE d.sig_agente = ?
+             AND strftime(d.competencia, '%Y') = substr(?, 1, 4)
+             AND strftime(d.competencia, '%Y-%m') <= ?
            ORDER BY d.competencia`
         : `SELECT strftime(competencia, '%Y-%m') AS competencia,
                   dec_ponderado, fec_ponderado, n_interrupcoes, consumidor_hora,
@@ -191,8 +198,10 @@ export class IndicadoresService {
                   NULL AS n_conjuntos_acima_limite_fec, NULL AS compensacao_paga
            FROM distribuidora_mes
            WHERE sig_agente = ?
+             AND strftime(competencia, '%Y') = substr(?, 1, 4)
+             AND strftime(competencia, '%Y-%m') <= ?
            ORDER BY competencia`,
-      [sig],
+      [sig, comp, comp],
     );
     if (serie.length === 0) {
       throw new NotFoundException(`Distribuidora "${sig}" não encontrada.`);
@@ -203,8 +212,10 @@ export class IndicadoresService {
               causa, is_programada, n_interrupcoes, afetados_total, consumidor_hora
        FROM causa_distribuidora_mes
        WHERE sig_agente = ?
+         AND strftime(competencia, '%Y') = substr(?, 1, 4)
+         AND strftime(competencia, '%Y-%m') <= ?
        ORDER BY competencia, consumidor_hora DESC`,
-      [sig],
+      [sig, comp, comp],
     );
 
     return { sig_agente: sig, serie, causas };

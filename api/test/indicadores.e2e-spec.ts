@@ -57,20 +57,39 @@ describe('Indicadores (e2e)', () => {
     expect(typeof linha.dec_ponderado).toBe('number');
   });
 
-  it('/indicadores/distribuidoras/:sig (GET) retorna série e causas de uma distribuidora real', async () => {
+  it('/indicadores/distribuidoras/:sig (GET) sem competência retorna 400', async () => {
+    const ranking = await request(app.getHttpServer()).get(
+      `/indicadores/distribuidoras?competencia=${competencia}`,
+    );
+    const sig = ranking.body[0].sig_agente;
+
+    return request(app.getHttpServer())
+      .get(`/indicadores/distribuidoras/${encodeURIComponent(sig)}`)
+      .expect(400);
+  });
+
+  it('/indicadores/distribuidoras/:sig (GET) retorna série e causas até a competência selecionada', async () => {
     const ranking = await request(app.getHttpServer()).get(
       `/indicadores/distribuidoras?competencia=${competencia}`,
     );
     const sig = ranking.body[0].sig_agente;
 
     const res = await request(app.getHttpServer())
-      .get(`/indicadores/distribuidoras/${encodeURIComponent(sig)}`)
+      .get(`/indicadores/distribuidoras/${encodeURIComponent(sig)}?competencia=${competencia}`)
       .expect(200);
 
     expect(res.body.sig_agente).toBe(sig);
     expect(Array.isArray(res.body.serie)).toBe(true);
     expect(res.body.serie.length).toBeGreaterThan(0);
     expect(Array.isArray(res.body.causas)).toBe(true);
+    // Nenhum mês da série (nem das causas) pode passar da competência
+    // selecionada — é o recorte "jan até o mês" que o drill-down respeita.
+    for (const linha of res.body.serie) {
+      expect(linha.competencia <= competencia).toBe(true);
+    }
+    for (const linha of res.body.causas) {
+      expect(linha.competencia <= competencia).toBe(true);
+    }
     // Enriquecimento regulatório: presente na resposta (pode ser null se o
     // pipeline rodou sem ingest_continuidade, mas a chave sempre existe).
     expect(res.body.serie[0]).toHaveProperty('n_conjuntos_acima_limite_dec');
@@ -79,7 +98,7 @@ describe('Indicadores (e2e)', () => {
 
   it('/indicadores/distribuidoras/:sig (GET) com sigla inexistente retorna 404', () => {
     return request(app.getHttpServer())
-      .get('/indicadores/distribuidoras/NAO-EXISTE-XYZ')
+      .get(`/indicadores/distribuidoras/NAO-EXISTE-XYZ?competencia=${competencia}`)
       .expect(404);
   });
 

@@ -1,5 +1,6 @@
 import { api, type DistribuidoraDetalhe } from '../api/client';
 import { useCarregamento } from '../hooks/useCarregamento';
+import { formatarCompetencia } from '../format';
 import { LineChartDec } from './LineChartDec';
 import { CausasBars } from './CausasBars';
 import { Modal } from './Modal';
@@ -9,14 +10,20 @@ import { ResumoRegulatorio } from './ResumoRegulatorio';
 interface Props {
   sig: string;
   nome: string;
+  competencia: string;
   onFechar: () => void;
 }
 
-export function Drilldown({ sig, nome, onFechar }: Props) {
+export function Drilldown({ sig, nome, competencia, onFechar }: Props) {
   const { dado: detalhe, erro } = useCarregamento<DistribuidoraDetalhe>(
-    () => api.distribuidoraDetalhe(sig),
-    [sig],
+    () => api.distribuidoraDetalhe(sig, competencia),
+    [sig, competencia],
   );
+
+  // "jan/2026" quando o mês selecionado já é janeiro (janeiro sozinho não
+  // vira "jan–jan/2026"); "jan–jul/2026" nos demais casos.
+  const mesFim = formatarCompetencia(competencia);
+  const rotuloPeriodo = competencia.endsWith('-01') ? mesFim : `jan–${mesFim}`;
 
   return (
     <Modal onClose={onFechar} labelledBy="drilldown-titulo">
@@ -36,11 +43,11 @@ export function Drilldown({ sig, nome, onFechar }: Props) {
             <ResumoRegulatorio serie={detalhe.serie} />
             <div className="drilldown-grid">
               <div>
-                <h3>DEC ponderado por mês</h3>
+                <h3>DEC ponderado por mês ({rotuloPeriodo})</h3>
                 <LineChartDec serie={detalhe.serie} />
               </div>
               <div>
-                <h3>Causas em todo o histórico</h3>
+                <h3>Causas das interrupções ({rotuloPeriodo})</h3>
                 <CausasBars causas={detalhe.causas} />
               </div>
             </div>

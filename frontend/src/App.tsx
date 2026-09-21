@@ -118,6 +118,7 @@ export default function App() {
           <Drilldown
             sig={selecionada.sig_agente}
             nome={selecionada.distribuidora}
+            competencia={competencia}
             onFechar={() => setSelecionada(null)}
           />
         )}

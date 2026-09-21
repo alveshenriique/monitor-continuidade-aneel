@@ -101,9 +101,9 @@ export const api = {
     get<DistribuidoraRanking[]>(
       `/indicadores/distribuidoras?competencia=${competencia}`,
     ),
-  distribuidoraDetalhe: (sig: string) =>
+  distribuidoraDetalhe: (sig: string, competencia: string) =>
     get<DistribuidoraDetalhe>(
-      `/indicadores/distribuidoras/${encodeURIComponent(sig)}`,
+      `/indicadores/distribuidoras/${encodeURIComponent(sig)}?competencia=${competencia}`,
     ),
   mapa: (competencia: string) =>
     get<MapaUf[]>(`/indicadores/mapa?competencia=${competencia}`),

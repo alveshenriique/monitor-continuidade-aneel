@@ -16,8 +16,11 @@ export class IndicadoresController {
   }
 
   @Get('distribuidoras/:sig')
-  distribuidoraDetalhe(@Param('sig') sig: string) {
-    return this.indicadores.distribuidoraDetalhe(sig);
+  distribuidoraDetalhe(
+    @Param('sig') sig: string,
+    @Query('competencia') competencia?: string,
+  ) {
+    return this.indicadores.distribuidoraDetalhe(sig, competencia);
   }
 
   @Get('mapa')
