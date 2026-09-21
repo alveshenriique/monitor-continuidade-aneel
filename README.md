@@ -1,16 +1,12 @@
-# Monitor de Continuidade: Distribuidoras de Energia (ANEEL)
+# Monitor de Continuidade: Distribuidoras de Energia
 
 [![Testes](https://github.com/alveshenriique/monitor-continuidade-aneel/actions/workflows/testes.yml/badge.svg)](https://github.com/alveshenriique/monitor-continuidade-aneel/actions/workflows/testes.yml)
-[![License: MIT](https://img.shields.io/github/license/alveshenriique/monitor-continuidade-aneel)](LICENSE)
-![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
-![Node 24](https://img.shields.io/badge/node-24-green)
 
 Painel que mostra **onde o fornecimento de energia está piorando no Brasil e qual
 distribuidora é responsável**, a partir dos dados públicos de interrupções da ANEEL,
 e que se atualiza sozinho a cada publicação mensal da Agência, em vez de ser uma
 análise pontual.
 
-<!-- TODO: substituir por screenshot/GIF real do painel -->
 ![Screenshot do painel](docs/screenshot.png)
 
 ## TL;DR
@@ -41,25 +37,19 @@ processamento toda vez que a ANEEL publica um mês novo não escala.
 ## Solução
 
 Um pipeline que lê o dado bruto, calcula os indicadores regulatórios de continuidade
-(DEC/FEC, conforme o Módulo 8 do PRODIST) e os expõe num painel web com três
+(DEC/FEC, conforme o Módulo 8 do PRODIST) e os expõe num painel web com quatro
 perguntas centrais:
 
-- **Onde está piorando**: mapa do Brasil colorido por UF pelo consumidor-hora
+- **Onde está piorando**: mapa do Brasil por UF, colorido pelo consumidor-hora
   perdido no mês.
-- **Quem piorou**: ranking nacional de distribuidoras pela variação do DEC em
-  relação à média dos meses anteriores, e, ao clicar num estado do mapa, o mesmo
-  tipo de ranking localizado: quem atua ali e como está indo nesse estado
-  especificamente.
+- **Quem piorou**: ranking nacional de distribuidoras por DEC ponderado, com a
+  variação em relação à média dos meses anteriores como contexto complementar; ao
+  clicar num estado do mapa, o mesmo ranking localizado a essa UF.
 - **Como uma distribuidora está evoluindo**: ao clicar numa linha do ranking, série
-  temporal do DEC mês a mês e quebra por causa da interrupção (programada vs.
-  não programada, meio ambiente, falha operacional etc.).
-- **Quem descumpriu a lei e quanto pagou por isso**: cruzando com o dataset
-  "Indicadores Coletivos de Continuidade" da ANEEL: quantos conjuntos da
-  distribuidora já ultrapassaram o limite legal de DEC (acumulado no ano, do
-  jeito que o PRODIST apura de verdade) e quanto ela pagou em compensação a
-  consumidores por violação de continuidade. "Piorou 19%" é uma observação;
-  "estourou o limite legal e pagou R$ 3,7 milhões em compensação" é uma
-  constatação com base legal e valor em R$.
+  temporal do DEC mês a mês e quebra por causa da interrupção.
+- **Quem descumpriu a lei e quanto pagou por isso**: cruza com os Indicadores
+  Coletivos de Continuidade da ANEEL: limite legal de DEC ultrapassado (acumulado
+  no ano) e compensação paga a consumidores por violação de continuidade.
 
 O pipeline é reexecutável: consulta a API do catálogo da ANEEL a cada rodada e só
 baixa/reprocessa quando o dado na origem realmente mudou. Isso é o que permite rodar
@@ -189,24 +179,26 @@ correção dos indicadores ou pegaram bugs reais antes de irem pro ar.
   como se fosse igual ao nosso. Essa validação também virou um teste automatizado
   (`pipeline/tests/test_validacao_oficial.py`), rodando em CI.
 - **Limite legal é ANUAL, não mensal**: comparar o DEC de um mês isolado contra ele
-  quase nunca estoura (confirmado: 0 transgressões em julho/2026 inteiro comparando
-  mês a mês). A apuração correta, que o PRODIST usa de fato, é o DEC acumulado de
-  janeiro até o mês corrente contra o limite do ano; com isso, 101 de 3.177 conjuntos
-  já estouravam o limite de DEC em 2026, um resultado bem mais plausível. Esse é
-  outro bug que os testes pegaram antes de ir pro ar.
+  quase nunca estoura (confirmado: 0 transgressões olhando julho/2026 mês a mês,
+  isoladamente). A apuração correta, que o PRODIST usa de fato, é o DEC acumulado de
+  janeiro até o mês corrente contra o limite do ano: com esse critério, 101 de 3.177
+  conjuntos já estouravam o limite de DEC acumulado até julho/2026 (número que cresce
+  mês a mês ao longo do ano, não o total fechado de 2026). Esse é outro bug que os
+  testes pegaram antes de ir pro ar.
 - **Divisão inteira explícita (`//`) pra derivar a UF**, não `CAST(x / 100000 AS
   INTEGER)`: o `/` do DuckDB faz divisão real e o `CAST` pra inteiro *arredonda*, não
   trunca. Isso chegou a produzir um bug real: município 3550308 (São Paulo capital)
   virava "UF 36" (inexistente) e sumia do mapa e do ranking por estado, pego pelos
   testes do pipeline antes de ir pro ar.
 - **Compensação paga ≠ limite coletivo estourado**: são dois mecanismos regulatórios
-  relacionados, mas diferentes. O limite de DEC/FEC é *coletivo*, por conjunto; a
-  compensação em R$ vem de violações de limites *individuais* por unidade consumidora
-  (DIC/FIC). Na prática, os dados confirmam que são desacoplados: as distribuidoras
-  que mais pagaram compensação em julho/2026 tinham *zero* conjuntos acima do limite
-  coletivo naquele mês. O painel não confunde os dois: mostra "N de M conjuntos acima
-  do limite" e "R$ pago em compensação" como duas informações lado a lado, não uma
-  única "multa".
+  relacionados, mas que medem coisas diferentes: o limite de DEC/FEC é *coletivo* e
+  acumulado no ano (a mesma métrica acumulada da decisão anterior); a compensação em
+  R$ vem de violações *individuais* por unidade consumidora (DIC/FIC), apurada mês a
+  mês. Na prática, os dados confirmam que são desacoplados: em julho/2026, as
+  distribuidoras que mais pagaram compensação naquele mês tinham *zero* conjuntos
+  entre os que estouravam o limite coletivo acumulado até então. O painel não
+  confunde os dois: mostra "N de M conjuntos acima do limite" e "R$ pago em
+  compensação" como duas informações lado a lado, não uma única "multa".
 
 Demais decisões, mais operacionais:
 
