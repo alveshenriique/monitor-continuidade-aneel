@@ -4,9 +4,33 @@
   padding: 24px 20px 64px;
 }
 
+.app-header-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
 .app-header h1 {
   font-size: 1.75rem;
   margin: 0 0 4px;
+}
+
+.botao-tema {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  width: 40px;
+  height: 40px;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  flex: none;
+}
+
+.botao-tema:hover {
+  background: var(--page-plane);
 }
 
 .subtitulo {
@@ -36,7 +60,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 16px;
+  gap: 10px;
   margin-bottom: 20px;
 }
 
@@ -44,20 +68,20 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 8px;
   background: var(--status-warning-bg);
   border: 1px solid var(--status-warning-border);
-  max-width: 420px;
+  max-width: 360px;
 }
 
 .aviso-parcial strong {
   color: var(--status-warning);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
 }
 
 .aviso-parcial span {
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   color: var(--text-secondary);
 }
 
@@ -218,6 +242,43 @@
 
 .tabela-ranking th:nth-child(n+2) {
   text-align: right;
+}
+
+/* Cabeçalho ordenável (só o ranking nacional usa; o do modal de UF continua
+   com <th> só texto, sem botão dentro). */
+.th-ordenavel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.tabela-ranking th:nth-child(n+2) .th-ordenavel {
+  justify-content: flex-end;
+}
+
+.th-ordenavel:hover,
+.th-ordenavel-ativa {
+  color: var(--text-primary);
+}
+
+.th-ordenavel:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.seta-ordenacao {
+  font-size: 0.65rem;
 }
 
 /* Só linhas marcadas como clicáveis parecem clicáveis — a tabela do modal de

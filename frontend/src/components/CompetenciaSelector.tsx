@@ -18,7 +18,7 @@ export function CompetenciaSelector({ competencias, selecionada, mesConsolidado,
         {competencias.map((c) => (
           <option key={c} value={c}>
             {formatarCompetenciaLonga(c)}
-            {mesConsolidado && c > mesConsolidado ? ' — em consolidação' : ''}
+            {mesConsolidado && c > mesConsolidado ? ' (em consolidação)' : ''}
           </option>
         ))}
       </select>

@@ -2,6 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Aplica o tema salvo (ou o do sistema, se não houver escolha salva)
+         antes do CSS/React renderizarem, pra não piscar no tema errado.
+         Mesma chave de localStorage ('tema') usada em ToggleTema.tsx —
+         os dois precisam ficar em sincronia. -->
+    <script>
+      (function () {
+        try {
+          var salvo = localStorage.getItem('tema');
+          if (salvo === 'light' || salvo === 'dark') {
+            document.documentElement.setAttribute('data-theme', salvo);
+            return;
+          }
+        } catch (e) {}
+        var escuro = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', escuro ? 'dark' : 'light');
+      })();
+    </script>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Monitor de Continuidade ANEEL</title>

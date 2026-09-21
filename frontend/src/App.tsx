@@ -5,6 +5,7 @@ import { RankingDistribuidoras } from './components/RankingDistribuidoras';
 import { MapaUf as MapaUfComponente } from './components/MapaUf';
 import { Drilldown } from './components/Drilldown';
 import { UfDrilldown } from './components/UfDrilldown';
+import { ToggleTema } from './components/ToggleTema';
 import './App.css';
 
 export default function App() {
@@ -63,11 +64,16 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Monitor de Continuidade ANEEL</h1>
-        <p className="subtitulo">
-          Mostra onde o fornecimento de energia está piorando no Brasil e qual
-          distribuidora é responsável, a partir dos dados públicos de interrupções da ANEEL.
-        </p>
+        <div className="app-header-topo">
+          <div>
+            <h1>Monitor de Continuidade ANEEL</h1>
+            <p className="subtitulo">
+              Mostra onde o fornecimento de energia está piorando no Brasil e qual
+              distribuidora é responsável, a partir dos dados públicos de interrupções da ANEEL.
+            </p>
+          </div>
+          <ToggleTema />
+        </div>
       </header>
 
       <div className="filtros">
@@ -83,7 +89,7 @@ export default function App() {
           <div className="aviso-parcial" role="status">
             <strong>Em consolidação pela ANEEL</strong>
             <span>
-              Este mês ainda está sendo apurado na origem — os números aqui podem
+              Este mês ainda está sendo apurado na origem: os números aqui podem
               subir conforme a ANEEL publica o restante do período.
             </span>
           </div>
