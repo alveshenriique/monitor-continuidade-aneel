@@ -81,7 +81,6 @@ export default function App() {
           <CompetenciaSelector
             competencias={competencias}
             selecionada={competencia}
-            mesConsolidado={mesConsolidado}
             onSelecionar={setCompetencia}
           />
         )}

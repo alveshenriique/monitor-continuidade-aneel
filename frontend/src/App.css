@@ -99,7 +99,12 @@
   border: 1px solid var(--border);
   background: var(--surface-1);
   color: var(--text-primary);
-  width: fit-content;
+  /* Largura fixa, calibrada pro nome de mês mais longo ("setembro de 2026").
+     Um <select> nativo com fit-content reserva sempre o espaço da opção mais
+     longa da lista; fixar evita além disso que o balão de aviso ao lado pule
+     de lugar a cada troca de mês. O aviso de "em consolidação" fica só no
+     balão, não no texto da opção, pra manter a caixa enxuta. */
+  width: 170px;
 }
 
 /* Conteúdo — mantém o render anterior visível (opacidade) durante refetch */
