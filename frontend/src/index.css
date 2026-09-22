@@ -57,13 +57,17 @@
 
     --series-1: #3987e5;
 
-    --seq-100: #184f95;
-    --seq-200: #1c5cab;
-    --seq-300: #256abf;
+    /* Mesma rampa do tema claro (7 cores já validadas), em ordem invertida:
+       aqui seq-100 precisa ser a mais clara e seq-700 a mais escura, senão
+       "mais impacto" (seq-700, mapeado em MapaUf.tsx) vira a cor mais clara
+       — o oposto do que a legenda diz. Bug real, corrigido; ver git log. */
+    --seq-100: #9ec5f4;
+    --seq-200: #6da7ec;
+    --seq-300: #3987e5;
     --seq-400: #2a78d6;
-    --seq-500: #3987e5;
-    --seq-600: #6da7ec;
-    --seq-700: #9ec5f4;
+    --seq-500: #256abf;
+    --seq-600: #1c5cab;
+    --seq-700: #184f95;
 
     --div-up: #e66767;
     --div-down: #3987e5;
@@ -92,13 +96,15 @@
 
   --series-1: #3987e5;
 
-  --seq-100: #184f95;
-  --seq-200: #1c5cab;
-  --seq-300: #256abf;
+  /* Mesma rampa do tema claro, em ordem invertida — ver comentário no bloco
+     @media acima. */
+  --seq-100: #9ec5f4;
+  --seq-200: #6da7ec;
+  --seq-300: #3987e5;
   --seq-400: #2a78d6;
-  --seq-500: #3987e5;
-  --seq-600: #6da7ec;
-  --seq-700: #9ec5f4;
+  --seq-500: #256abf;
+  --seq-600: #1c5cab;
+  --seq-700: #184f95;
 
   --div-up: #e66767;
   --div-down: #3987e5;
