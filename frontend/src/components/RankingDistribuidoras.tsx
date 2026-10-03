@@ -27,11 +27,12 @@ const COLUNAS: ColunaDef[] = [
 ];
 
 export function RankingDistribuidoras({ dados, selecionada, onSelecionar }: Props) {
-  // Padrão inicial: variação decrescente — o mesmo critério que a API já usa
-  // (ver MIN_CONSUMIDOR_HORA_RANKING em api/src/config.ts), pra tabela abrir
-  // exatamente na ordem que veio do backend, sem reordenar de cara.
+  // Padrão: DEC decrescente (severidade — quem está pior em nível agora).
+  // Nunca fica vazio, mesmo sem mês anterior pra calcular variação (ex.:
+  // janeiro). "Quem piorou" (tendência) é uma pergunta diferente, respondida
+  // clicando no cabeçalho "Variação" — não é mais a visão padrão.
   const [ordenacao, setOrdenacao] = useState<{ coluna: ColunaChave; direcao: Direcao }>({
-    coluna: 'variacao_pct',
+    coluna: 'dec_ponderado',
     direcao: 'desc',
   });
 
@@ -43,8 +44,9 @@ export function RankingDistribuidoras({ dados, selecionada, onSelecionar }: Prop
       return [...dados].sort((a, b) => sinal * a.distribuidora.localeCompare(b.distribuidora, 'pt-BR'));
     }
 
-    // Variação pode ser null (distribuidora sem competência anterior pra comparar)
-    // — fica sempre no final, não entra na ordenação numérica.
+    // Variação pode ser null (distribuidora sem competência anterior pra
+    // comparar, ex.: primeiro mês de dado carregado) — fica sempre no final,
+    // não entra na ordenação numérica nem some da lista.
     const comValor = dados.filter((d) => d[coluna] !== null);
     const semValor = dados.filter((d) => d[coluna] === null);
     comValor.sort((a, b) => sinal * ((a[coluna] as number) - (b[coluna] as number)));
@@ -64,12 +66,12 @@ export function RankingDistribuidoras({ dados, selecionada, onSelecionar }: Prop
 
   return (
     <div className="cartao">
-      <h2>Quem piorou no mês</h2>
+      <h2>Ranking de distribuidoras</h2>
       <p className="subtitulo">
-        Ordenado pela variação do DEC ponderado em relação à média das competências
-        anteriores, de quem mais piorou para quem mais melhorou. Só entram distribuidoras
-        com consumidor-hora relevante no mês — abaixo disso a variação percentual é ruído
-        de base pequena, não sinal real de piora.
+        Ordenado pelo DEC ponderado, a média de horas de interrupção por consumidor, do
+        pior para o melhor. Clique em "Variação" pra ver quem mais piorou em relação aos
+        meses anteriores; no primeiro mês de dado carregado ainda não há variação pra
+        comparar. Só entram distribuidoras com consumidor-hora relevante no mês.
       </p>
       <div className="tabela-scroll">
         <table className="tabela-ranking">
