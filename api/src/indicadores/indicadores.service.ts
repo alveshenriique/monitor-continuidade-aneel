@@ -14,6 +14,12 @@ interface Uf {
   regiao_nome: string;
 }
 
+interface DomiciliosUf {
+  codigo: number;
+  sigla: string;
+  domicilios: number;
+}
+
 const REFERENCE_DIR = resolve(__dirname, '..', '..', '..', 'data', 'reference');
 
 /** UF é derivada dos dois primeiros dígitos do código IBGE do município
@@ -23,6 +29,21 @@ const ufs: Uf[] = JSON.parse(
 );
 const UF_POR_CODIGO = new Map(ufs.map((uf) => [uf.codigo, uf]));
 const UF_POR_SIGLA = new Map(ufs.map((uf) => [uf.sigla.toUpperCase(), uf]));
+
+/**
+ * Domicílios particulares permanentes ocupados por UF — IBGE, Censo
+ * Demográfico 2022, tabela 4712 (SIDRA). Denominador usado pra normalizar o
+ * consumidor-hora do mapa por intensidade, não por tamanho do estado (ver
+ * mapa() abaixo). É domicílio, não "unidade consumidora" no sentido da ANEEL
+ * (que inclui ligação comercial/industrial) — é a aproximação mais limpa
+ * disponível sem o problema de um conjunto cruzar mais de um município/UF.
+ */
+const domiciliosPorUf: DomiciliosUf[] = JSON.parse(
+  readFileSync(resolve(REFERENCE_DIR, 'domicilios_uf.json'), 'utf-8'),
+);
+const DOMICILIOS_POR_CODIGO = new Map(
+  domiciliosPorUf.map((d) => [d.codigo, d.domicilios]),
+);
 
 export interface DistribuidoraMesRow {
   sig_agente: string;
@@ -234,6 +255,13 @@ export class IndicadoresService {
    * Consumidor-hora perdido por UF no mês, para colorir o mapa. Granularidade
    * de UF (não município): mais leve para renderizar e suficiente para
    * responder "onde está piorando" em um painel nacional.
+   *
+   * consumidor_hora é o total absoluto (soma) — favorece estados grandes por
+   * população, não por intensidade do problema (ex.: SP lidera por volume
+   * mesmo com serviço relativamente bom). consumidor_hora_por_domicilio
+   * divide esse total pelos domicílios do estado (ver DOMICILIOS_POR_CODIGO),
+   * e é esse o valor usado pra colorir o mapa — o absoluto continua disponível
+   * pra quem precisar dele (ex.: cálculo de participação nacional no front).
    */
   async mapa(competencia: string | undefined) {
     const comp = this.validarCompetencia(competencia);
@@ -253,6 +281,12 @@ export class IndicadoresService {
       .map((r) => {
         const uf = UF_POR_CODIGO.get(r.uf_codigo);
         if (!uf) return null; // código sem UF válida (ruído residual do dado bruto)
+        const domicilios = DOMICILIOS_POR_CODIGO.get(uf.codigo);
+        // Defensivo: se a UF não tiver domicílios cadastrados (não deveria
+        // acontecer — a tabela cobre as 27), não divide por null/0; expõe
+        // null e deixa o front decidir como representar "sem normalização".
+        const consumidorHoraPorDomicilio =
+          domicilios ? r.consumidor_hora / domicilios : null;
         return {
           uf: uf.sigla,
           uf_codigo: String(uf.codigo), // casa com "codarea" do GeoJSON de malha_uf
@@ -262,6 +296,7 @@ export class IndicadoresService {
           n_interrupcoes: r.n_interrupcoes,
           afetados_total: r.afetados_total,
           consumidor_hora: r.consumidor_hora,
+          consumidor_hora_por_domicilio: consumidorHoraPorDomicilio,
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null);
