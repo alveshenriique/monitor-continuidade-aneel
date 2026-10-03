@@ -50,6 +50,10 @@ export interface MapaUf {
   n_interrupcoes: number;
   afetados_total: number;
   consumidor_hora: number;
+  /** consumidor_hora dividido pelos domicílios do estado (Censo 2022/IBGE) —
+   * é essa a métrica usada pra colorir o mapa, não o total absoluto acima.
+   * null se a UF não tiver domicílios cadastrados na referência. */
+  consumidor_hora_por_domicilio: number | null;
 }
 
 export interface DistribuidoraUf {

@@ -32,10 +32,21 @@ export function MapaUf({ malha, dados, onSelecionar }: Props) {
     [dados],
   );
 
-  // Buckets por quantil: reparte os 27 estados em 7 faixas de tamanho igual,
-  // para o mapa diferenciar bem mesmo com poucos estados concentrando o impacto.
+  // Buckets por quantil: reparte os estados em 7 faixas de tamanho igual,
+  // para o mapa diferenciar bem mesmo com poucos estados concentrando o
+  // impacto. Usa consumidor-hora POR DOMICÍLIO (intensidade), não o total
+  // absoluto — senão o mapa só mostra os estados maiores, não os piores (SP
+  // lidera em volume mesmo com serviço relativamente bom). UF sem valor
+  // normalizado (domicílios ausente na referência) fica fora do bucket e
+  // cai no cinza neutro, igual UF sem dado nenhum.
   const passoPorCodigo = useMemo(() => {
-    const ordenado = [...dados].sort((a, b) => a.consumidor_hora - b.consumidor_hora);
+    const comValor = dados.filter(
+      (d): d is MapaUfRow & { consumidor_hora_por_domicilio: number } =>
+        d.consumidor_hora_por_domicilio !== null,
+    );
+    const ordenado = [...comValor].sort(
+      (a, b) => a.consumidor_hora_por_domicilio - b.consumidor_hora_por_domicilio,
+    );
     const passo = new Map<string, number>();
     ordenado.forEach((d, i) => {
       const bucket = Math.min(
@@ -53,9 +64,10 @@ export function MapaUf({ malha, dados, onSelecionar }: Props) {
     <div className="cartao">
       <h2>Onde está piorando</h2>
       <p className="subtitulo">
-        Consumidor-hora perdido por UF no mês. Essa métrica soma, em cada interrupção,
-        o número de consumidores afetados multiplicado pela duração. Quanto mais escura
-        a cor, maior o impacto.
+        Consumidor-hora perdido por domicílio em cada UF no mês: a soma de consumidores
+        afetados × duração de cada interrupção, dividida pelos domicílios do estado
+        (Censo 2022/IBGE) — pra mostrar intensidade, não o tamanho do estado. Quanto
+        mais escura a cor, maior a intensidade.
       </p>
       <div className="mapa-layout">
         <svg
@@ -121,10 +133,19 @@ export function MapaUf({ malha, dados, onSelecionar }: Props) {
         >
           <strong>{dica.uf.uf_nome}</strong>
           <div>
-            <span className="tooltip-valor">{formatarCompacto(dica.uf.consumidor_hora)}</span>{' '}
-            consumidor-hora
+            {dica.uf.consumidor_hora_por_domicilio !== null ? (
+              <>
+                <span className="tooltip-valor">
+                  {formatarNumero(dica.uf.consumidor_hora_por_domicilio, 2)}
+                </span>{' '}
+                consumidor-hora por domicílio
+              </>
+            ) : (
+              <span className="texto-muted">sem domicílios cadastrados pra normalizar</span>
+            )}
           </div>
           <div className="texto-muted">
+            {formatarCompacto(dica.uf.consumidor_hora)} consumidor-hora no total ·{' '}
             {formatarNumero(dica.uf.n_interrupcoes)} interrupções
           </div>
         </div>

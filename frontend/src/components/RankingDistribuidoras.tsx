@@ -27,9 +27,11 @@ const COLUNAS: ColunaDef[] = [
 ];
 
 export function RankingDistribuidoras({ dados, selecionada, onSelecionar }: Props) {
-  // Padrão inicial: DEC decrescente — o mesmo jeito que a tabela já abre hoje.
+  // Padrão inicial: variação decrescente — o mesmo critério que a API já usa
+  // (ver MIN_CONSUMIDOR_HORA_RANKING em api/src/config.ts), pra tabela abrir
+  // exatamente na ordem que veio do backend, sem reordenar de cara.
   const [ordenacao, setOrdenacao] = useState<{ coluna: ColunaChave; direcao: Direcao }>({
-    coluna: 'dec_ponderado',
+    coluna: 'variacao_pct',
     direcao: 'desc',
   });
 
@@ -64,9 +66,10 @@ export function RankingDistribuidoras({ dados, selecionada, onSelecionar }: Prop
     <div className="cartao">
       <h2>Quem piorou no mês</h2>
       <p className="subtitulo">
-        Ordenado pelo DEC ponderado, a média de horas de interrupção por consumidor, do
-        pior para o melhor no mês. A variação em relação à média das competências
-        anteriores aparece ao lado, como informação complementar.
+        Ordenado pela variação do DEC ponderado em relação à média das competências
+        anteriores, de quem mais piorou para quem mais melhorou. Só entram distribuidoras
+        com consumidor-hora relevante no mês — abaixo disso a variação percentual é ruído
+        de base pequena, não sinal real de piora.
       </p>
       <div className="tabela-scroll">
         <table className="tabela-ranking">

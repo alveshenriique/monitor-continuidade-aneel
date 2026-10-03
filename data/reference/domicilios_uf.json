@@ -1,0 +1,137 @@
+[
+  {
+    "codigo": 11,
+    "sigla": "RO",
+    "domicilios": 555099
+  },
+  {
+    "codigo": 12,
+    "sigla": "AC",
+    "domicilios": 261001
+  },
+  {
+    "codigo": 13,
+    "sigla": "AM",
+    "domicilios": 1079880
+  },
+  {
+    "codigo": 14,
+    "sigla": "RR",
+    "domicilios": 177418
+  },
+  {
+    "codigo": 15,
+    "sigla": "PA",
+    "domicilios": 2444319
+  },
+  {
+    "codigo": 16,
+    "sigla": "AP",
+    "domicilios": 201021
+  },
+  {
+    "codigo": 17,
+    "sigla": "TO",
+    "domicilios": 513796
+  },
+  {
+    "codigo": 21,
+    "sigla": "MA",
+    "domicilios": 2091583
+  },
+  {
+    "codigo": 22,
+    "sigla": "PI",
+    "domicilios": 1071549
+  },
+  {
+    "codigo": 23,
+    "sigla": "CE",
+    "domicilios": 3020374
+  },
+  {
+    "codigo": 24,
+    "sigla": "RN",
+    "domicilios": 1141873
+  },
+  {
+    "codigo": 25,
+    "sigla": "PB",
+    "domicilios": 1372108
+  },
+  {
+    "codigo": 26,
+    "sigla": "PE",
+    "domicilios": 3184223
+  },
+  {
+    "codigo": 27,
+    "sigla": "AL",
+    "domicilios": 1041552
+  },
+  {
+    "codigo": 28,
+    "sigla": "SE",
+    "domicilios": 782919
+  },
+  {
+    "codigo": 29,
+    "sigla": "BA",
+    "domicilios": 5088635
+  },
+  {
+    "codigo": 31,
+    "sigla": "MG",
+    "domicilios": 7533434
+  },
+  {
+    "codigo": 32,
+    "sigla": "ES",
+    "domicilios": 1428739
+  },
+  {
+    "codigo": 33,
+    "sigla": "RJ",
+    "domicilios": 6152051
+  },
+  {
+    "codigo": 35,
+    "sigla": "SP",
+    "domicilios": 16224248
+  },
+  {
+    "codigo": 41,
+    "sigla": "PR",
+    "domicilios": 4209432
+  },
+  {
+    "codigo": 42,
+    "sigla": "SC",
+    "domicilios": 2806100
+  },
+  {
+    "codigo": 43,
+    "sigla": "RS",
+    "domicilios": 4256082
+  },
+  {
+    "codigo": 50,
+    "sigla": "MS",
+    "domicilios": 979669
+  },
+  {
+    "codigo": 51,
+    "sigla": "MT",
+    "domicilios": 1278142
+  },
+  {
+    "codigo": 52,
+    "sigla": "GO",
+    "domicilios": 2572930
+  },
+  {
+    "codigo": 53,
+    "sigla": "DF",
+    "domicilios": 988191
+  }
+]

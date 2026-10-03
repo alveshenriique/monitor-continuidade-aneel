@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DatabaseService } from '../database/database.service';
-import { MES_CONSOLIDADO, TOP_N_RANKING_UF } from '../config';
+import { MES_CONSOLIDADO, TOP_N_RANKING_UF, MIN_CONSUMIDOR_HORA_RANKING } from '../config';
 
 const REGEX_COMPETENCIA = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -138,8 +138,16 @@ export class IndicadoresService {
   /**
    * Ranking das distribuidoras no mês, com a variação do DEC ponderado em
    * relação à média das competências anteriores disponíveis — é essa variação
-   * que aponta "quem piorou". Calculada em SQL para evitar N+1 e manter a
-   * API como uma camada fina sobre o DuckDB.
+   * que aponta "quem piorou", e é o critério de ordenação (decrescente, NULLS
+   * por último: distribuidora sem competência anterior pra comparar não tem
+   * variação, mas continua na lista). Calculada em SQL para evitar N+1 e
+   * manter a API como uma camada fina sobre o DuckDB.
+   *
+   * Só entram distribuidoras com consumidor_hora >= MIN_CONSUMIDOR_HORA_RANKING
+   * na competência: abaixo disso a variação percentual é ruído de base
+   * pequena (ver comentário da constante em config.ts), não sinal real de
+   * piora. É um filtro de elegibilidade do ranking — não exclui nada do
+   * banco, só não participa dessa ordenação por variação.
    */
   async distribuidoras(competencia: string | undefined) {
     const comp = this.validarCompetencia(competencia);
@@ -149,6 +157,7 @@ export class IndicadoresService {
                 consumidor_hora, dec_ponderado, fec_ponderado
          FROM distribuidora_mes
          WHERE strftime(competencia, '%Y-%m') = ?
+           AND consumidor_hora >= ?
        ),
        anteriores AS (
          SELECT sig_agente, avg(dec_ponderado) AS dec_medio_anterior
@@ -165,8 +174,8 @@ export class IndicadoresService {
               END AS variacao_pct
        FROM atual a
        LEFT JOIN anteriores p USING (sig_agente)
-       ORDER BY a.dec_ponderado DESC, a.consumidor_hora DESC, a.sig_agente`,
-      [comp, comp],
+       ORDER BY variacao_pct DESC NULLS LAST, a.consumidor_hora DESC, a.sig_agente`,
+      [comp, MIN_CONSUMIDOR_HORA_RANKING, comp],
     );
   }
 
