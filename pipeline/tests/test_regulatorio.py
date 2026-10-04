@@ -8,11 +8,13 @@ reais encontrados enquanto isso foi construído.
 """
 from __future__ import annotations
 
+from datetime import date
+
 import duckdb
 import pandas as pd
 import pytest
 
-from pipeline.transform import construir_regulatorio
+from pipeline.transform import calcular_mes_consolidado, construir_regulatorio
 
 COLUNAS_APURADO = [
     "DatGeracaoConjuntoDados", "IdeConjUndConsumidoras", "DscConjUndConsumidoras",
@@ -185,3 +187,36 @@ def test_conjunto_sem_par_em_fato_conjunto_mes_e_descartado(con):
     )
     (total,) = con.execute("SELECT count(*) FROM regulatorio_distribuidora_mes").fetchone()
     assert total == 0
+
+
+def _registrar_compensacao_por_mes(con, contagens: dict[str, int]) -> None:
+    """contagens: {'2026-01': 10, ...} — quantos CONJUNTOS distintos reportam
+    compensação naquele mês, que é o que calcular_mes_consolidado conta (o
+    valor em R$ não importa pra essa regra, só a contagem)."""
+    linhas = []
+    for competencia, n in contagens.items():
+        ano, mes = (int(p) for p in competencia.split("-"))
+        for i in range(n):
+            linhas.append({"conjunto": i, "competencia": date(ano, mes, 1), "compensacao_paga": 10.0})
+    df = pd.DataFrame(linhas, columns=["conjunto", "competencia", "compensacao_paga"])
+    con.register("compensacao_teste", df)
+
+
+def test_mes_consolidado_e_o_ultimo_mes_completo(con):
+    """Mês completo: contagem de conjuntos reportando compensação >= 50% da
+    mediana dos meses anteriores do ano. Mês parcial (ANEEL ainda apurando)
+    despenca bem abaixo disso — replica o padrão observado no dado real
+    (jan-jun cheios, jul/ago despencando; ver README)."""
+    _registrar_compensacao_por_mes(con, {
+        "2026-01": 10, "2026-02": 10, "2026-03": 10,
+        "2026-04": 2,  # parcial: 2/10 = 20%, bem abaixo do corte de 50%
+    })
+    assert calcular_mes_consolidado(con, compensacao_src="compensacao_teste") == "2026-03"
+
+
+def test_mes_consolidado_sem_dado_retorna_none(con):
+    """Sem nenhuma linha de compensação (ex.: ingest_continuidade nunca
+    rodou), não há o que avaliar — quem chama decide o fallback (ver main())."""
+    df = pd.DataFrame(columns=["conjunto", "competencia", "compensacao_paga"])
+    con.register("compensacao_vazia", df)
+    assert calcular_mes_consolidado(con, compensacao_src="compensacao_vazia") is None

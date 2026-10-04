@@ -1,8 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DatabaseService } from '../database/database.service';
-import { MES_CONSOLIDADO, TOP_N_RANKING_UF, MIN_CONSUMIDOR_HORA_RANKING } from '../config';
+import { TOP_N_RANKING_UF, MIN_CONSUMIDOR_HORA_RANKING } from '../config';
 
 const REGEX_COMPETENCIA = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -107,7 +107,9 @@ export interface CompetenciasResposta {
 
 @Injectable()
 export class IndicadoresService {
+  private readonly logger = new Logger(IndicadoresService.name);
   private regulatorioDisponivel: Promise<boolean> | null = null;
+  private metadadosDisponivel: Promise<boolean> | null = null;
 
   constructor(private readonly db: DatabaseService) {}
 
@@ -127,6 +129,47 @@ export class IndicadoresService {
         .then((rows) => rows[0]?.existe ?? false);
     }
     return this.regulatorioDisponivel;
+  }
+
+  /** Mesmo padrão de temTabelaRegulatorio() — `metadados` só existe se o
+   * pipeline rodou com o enriquecimento regulatório (é lá que o mês
+   * consolidado é calculado; ver pipeline/transform.py). */
+  private async temTabelaMetadados(): Promise<boolean> {
+    if (!this.metadadosDisponivel) {
+      this.metadadosDisponivel = this.db
+        .query<{ existe: boolean }>(
+          `SELECT count(*) > 0 AS existe FROM information_schema.tables
+           WHERE table_name = 'metadados'`,
+        )
+        .then((rows) => rows[0]?.existe ?? false);
+    }
+    return this.metadadosDisponivel;
+  }
+
+  /**
+   * Mês consolidado, derivado do dado pelo pipeline (ver
+   * calcular_mes_consolidado em transform.py) e persistido na tabela
+   * `metadados`. Fallback explícito se ela não existir (banco antigo, ou
+   * pipeline rodado sem `ingest_continuidade`): usa o mês mais recente
+   * disponível e loga um aviso — o painel ainda abre em algo válido, só
+   * sem a garantia de que esse mês está de fato consolidado.
+   */
+  private async mesConsolidado(competenciasDisponiveis: string[]): Promise<string> {
+    if (await this.temTabelaMetadados()) {
+      const rows = await this.db.query<{ mes_consolidado: string }>(
+        `SELECT mes_consolidado FROM metadados LIMIT 1`,
+      );
+      if (rows[0]?.mes_consolidado) {
+        return rows[0].mes_consolidado;
+      }
+    }
+    this.logger.warn(
+      'Tabela "metadados" ausente (ou vazia) — usando o mês mais recente ' +
+        'disponível como mês consolidado. Rode o pipeline com ' +
+        '`python -m pipeline.ingest_continuidade` antes do transform para ' +
+        'derivar o valor de verdade.',
+    );
+    return competenciasDisponiveis[0] ?? '';
   }
 
   private validarCompetencia(competencia: string | undefined): string {
@@ -150,9 +193,10 @@ export class IndicadoresService {
        FROM distribuidora_mes
        ORDER BY competencia DESC`,
     );
+    const competencias = rows.map((r) => r.competencia);
     return {
-      competencias: rows.map((r) => r.competencia),
-      mes_consolidado: MES_CONSOLIDADO,
+      competencias,
+      mes_consolidado: await this.mesConsolidado(competencias),
     };
   }
 

@@ -23,6 +23,9 @@ Decisões de modelagem (documentadas para o README/vídeo):
     pagou de compensação". Roda só se `python -m pipeline.ingest_continuidade`
     já tiver baixado os três recursos; se não, o pipeline principal segue
     funcionando normalmente sem essas tabelas (a API trata a ausência).
+  - Mês consolidado (ver calcular_mes_consolidado): derivado do dado a cada
+    rodada, não mais um valor fixo atualizado à mão — persistido na tabela
+    `metadados`, que a API lê. Cobre a virada de ano sozinho.
 
 Uso:
     python -m pipeline.transform
@@ -32,6 +35,7 @@ from __future__ import annotations
 
 import logging
 import os
+import statistics
 
 import duckdb
 
@@ -324,6 +328,40 @@ def construir_regulatorio(
     """)
 
 
+def calcular_mes_consolidado(
+    con: duckdb.DuckDBPyConnection,
+    compensacao_src: str = "compensacao_conjunto_mes",
+) -> str | None:
+    """Último mês "completo" do dataset regulatório, derivado do dado (não
+    mais um valor fixo atualizado à mão — cobre a virada de ano sozinho).
+
+    Regra (aprovada por análise do dado real, ver README): um mês é
+    consolidado se o nº de conjuntos com compensação reportada é >= 50% da
+    mediana dos meses anteriores do mesmo ano. Meses em apuração na ANEEL
+    despencam bem abaixo disso (confirmado: julho/2026 em 13%, agosto/2026
+    em 0,1% do normal) — a folga entre "completo" (~97-100%) e "parcial"
+    (<15%) é tão grande que o corte exato em 50% não é sensível. Retorna o
+    ÚLTIMO mês que passa nessa checagem, varrendo em ordem cronológica.
+
+    Retorna None se `compensacao_src` não tiver nenhuma linha (nada para
+    avaliar) — quem chama decide o que fazer nesse caso (ver main()).
+    """
+    linhas = con.execute(f"""
+        SELECT strftime(competencia, '%Y-%m') AS mes, count(*) AS n
+        FROM {compensacao_src}
+        GROUP BY competencia
+        ORDER BY competencia
+    """).fetchall()
+
+    mes_consolidado = None
+    anteriores: list[int] = []
+    for mes, n in linhas:
+        if not anteriores or n >= 0.5 * statistics.median(anteriores):
+            mes_consolidado = mes
+        anteriores.append(n)
+    return mes_consolidado
+
+
 def main() -> None:
     bruto = config.caminho_bruto()
     if not bruto.exists():
@@ -360,11 +398,27 @@ def main() -> None:
                 construir_regulatorio(con, config.ANO_INGESTAO)
                 tabelas += ["apurado_oficial_conjunto_mes", "limite_conjunto",
                             "compensacao_conjunto_mes", "regulatorio_distribuidora_mes"]
+
+                mes_consolidado = calcular_mes_consolidado(con)
+                if mes_consolidado:
+                    con.execute(
+                        "CREATE OR REPLACE TABLE metadados AS SELECT ? AS mes_consolidado",
+                        [mes_consolidado],
+                    )
+                    tabelas += ["metadados"]
+                    log.info("Mês consolidado (derivado do dado): %s", mes_consolidado)
+                else:
+                    log.warning(
+                        "Não foi possível derivar o mês consolidado (sem dado de "
+                        "compensação) — tabela metadados não criada; a API cai no "
+                        "fallback dela (mês mais recente disponível)."
+                    )
             else:
                 log.warning(
                     "Dataset de indicadores coletivos de continuidade não encontrado — "
-                    "pulando o enriquecimento regulatório. Rode "
-                    "`python -m pipeline.ingest_continuidade` para incluí-lo."
+                    "pulando o enriquecimento regulatório (e o mês consolidado, que "
+                    "depende dele). Rode `python -m pipeline.ingest_continuidade` "
+                    "para incluí-los."
                 )
 
             print("\n=== Tabelas geradas ===")
