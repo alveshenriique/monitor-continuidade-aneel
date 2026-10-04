@@ -317,7 +317,8 @@ export class IndicadoresService {
        FROM municipio_mes
        WHERE strftime(competencia, '%Y-%m') = ?
        GROUP BY 1
-       HAVING uf_codigo BETWEEN 11 AND 53`,
+       HAVING uf_codigo BETWEEN 11 AND 53
+       ORDER BY uf_codigo`,
       [comp],
     );
 
