@@ -31,6 +31,7 @@ Uso:
 from __future__ import annotations
 
 import logging
+import os
 
 import duckdb
 
@@ -324,54 +325,72 @@ def main() -> None:
     if not bruto.exists():
         raise SystemExit(f"Arquivo bruto não encontrado: {bruto}. Rode `python -m pipeline.ingest` antes.")
 
-    con = duckdb.connect(str(DB_PATH))
-    src = f"read_parquet('{bruto}')"
-    log.info("Lendo bruto: %s", bruto)
+    # Escreve num arquivo temporário na mesma pasta do oficial, e só troca os
+    # dois (rename atômico, via os.replace) no final, com a conexão já
+    # fechada. Escrever direto em cima do indicadores.duckdb oficial colide
+    # com a API: mesmo ela abrindo em modo READ_ONLY, o DuckDB mantém um lock
+    # de arquivo que o transform (escrita) não consegue adquirir — o backfill
+    # quebrava se o painel estivesse no ar. O arquivo temp é novo, a API nunca
+    # chega a abri-lo, então não há lock disputado. Se algo falhar no meio, o
+    # temp é descartado e o indicadores.duckdb oficial fica intacto.
+    db_tmp = DB_PATH.with_name(f"{DB_PATH.name}.tmp.{os.getpid()}")
+    db_tmp.unlink(missing_ok=True)  # sobra de uma execução anterior que falhou com o mesmo PID
 
-    raio_x(con, src)
+    try:
+        con = duckdb.connect(str(db_tmp))
+        try:
+            src = f"read_parquet('{bruto}')"
+            log.info("Lendo bruto: %s", bruto)
 
-    log.info("Construindo tabelas de indicadores...")
-    construir(con, src)
+            raio_x(con, src)
 
-    tabelas = ["fato_conjunto_mes", "distribuidora_mes", "municipio_mes",
-               "distribuidora_uf_mes", "causa_distribuidora_mes"]
+            log.info("Construindo tabelas de indicadores...")
+            construir(con, src)
 
-    arquivos_regulatorio = [config.caminho_continuidade(c) for c in ("apurado", "limite", "compensacao")]
-    if all(a.exists() for a in arquivos_regulatorio):
-        log.info("Construindo tabelas do enriquecimento regulatório (limite legal + compensação)...")
-        construir_regulatorio(con, config.ANO_INGESTAO)
-        tabelas += ["apurado_oficial_conjunto_mes", "limite_conjunto",
-                    "compensacao_conjunto_mes", "regulatorio_distribuidora_mes"]
-    else:
-        log.warning(
-            "Dataset de indicadores coletivos de continuidade não encontrado — "
-            "pulando o enriquecimento regulatório. Rode "
-            "`python -m pipeline.ingest_continuidade` para incluí-lo."
-        )
+            tabelas = ["fato_conjunto_mes", "distribuidora_mes", "municipio_mes",
+                       "distribuidora_uf_mes", "causa_distribuidora_mes"]
 
-    print("\n=== Tabelas geradas ===")
-    for t in tabelas:
-        (linhas,) = con.execute(f"SELECT count(*) FROM {t}").fetchone()
-        print(f"  {t:<28} {linhas:>8,} linhas")
+            arquivos_regulatorio = [config.caminho_continuidade(c) for c in ("apurado", "limite", "compensacao")]
+            if all(a.exists() for a in arquivos_regulatorio):
+                log.info("Construindo tabelas do enriquecimento regulatório (limite legal + compensação)...")
+                construir_regulatorio(con, config.ANO_INGESTAO)
+                tabelas += ["apurado_oficial_conjunto_mes", "limite_conjunto",
+                            "compensacao_conjunto_mes", "regulatorio_distribuidora_mes"]
+            else:
+                log.warning(
+                    "Dataset de indicadores coletivos de continuidade não encontrado — "
+                    "pulando o enriquecimento regulatório. Rode "
+                    "`python -m pipeline.ingest_continuidade` para incluí-lo."
+                )
 
-    print("\n=== Sanidade do DEC por distribuidora/mês ===")
-    print(con.execute("""
-        SELECT round(median(dec_ponderado), 2) AS dec_mediana_h,
-               round(quantile_cont(dec_ponderado, 0.95), 2) AS dec_p95_h,
-               round(max(dec_ponderado), 2) AS dec_max_h
-        FROM distribuidora_mes
-    """).df().to_string(index=False))
+            print("\n=== Tabelas geradas ===")
+            for t in tabelas:
+                (linhas,) = con.execute(f"SELECT count(*) FROM {t}").fetchone()
+                print(f"  {t:<28} {linhas:>8,} linhas")
 
-    print("\n=== Amostra: piores distribuidoras no mês mais recente ===")
-    print(con.execute("""
-        SELECT sig_agente, distribuidora, competencia,
-               round(dec_ponderado, 2) AS dec_h, n_interrupcoes
-        FROM distribuidora_mes
-        WHERE competencia = (SELECT max(competencia) FROM distribuidora_mes)
-        ORDER BY dec_ponderado DESC LIMIT 8
-    """).df().to_string(index=False))
+            print("\n=== Sanidade do DEC por distribuidora/mês ===")
+            print(con.execute("""
+                SELECT round(median(dec_ponderado), 2) AS dec_mediana_h,
+                       round(quantile_cont(dec_ponderado, 0.95), 2) AS dec_p95_h,
+                       round(max(dec_ponderado), 2) AS dec_max_h
+                FROM distribuidora_mes
+            """).df().to_string(index=False))
 
-    con.close()
+            print("\n=== Amostra: piores distribuidoras no mês mais recente ===")
+            print(con.execute("""
+                SELECT sig_agente, distribuidora, competencia,
+                       round(dec_ponderado, 2) AS dec_h, n_interrupcoes
+                FROM distribuidora_mes
+                WHERE competencia = (SELECT max(competencia) FROM distribuidora_mes)
+                ORDER BY dec_ponderado DESC LIMIT 8
+            """).df().to_string(index=False))
+        finally:
+            con.close()
+    except Exception:
+        db_tmp.unlink(missing_ok=True)
+        raise
+
+    os.replace(db_tmp, DB_PATH)
     log.info("Indicadores persistidos em %s", DB_PATH)
 
 
