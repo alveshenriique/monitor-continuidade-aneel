@@ -29,8 +29,9 @@ export function UfDrilldown({ uf, ufNome, competencia, participacaoNacional, onF
           subtitulo={
             <>
               Responde por {formatarPercentualSimples(participacaoNacional)} do consumidor-hora
-              perdido no Brasil neste mês. As 10 maiores distribuidoras aqui por participação no
-              estado, com a variação de cada uma em relação à própria média de meses anteriores.
+              perdido no Brasil neste mês.
+              <br />
+              Principais distribuidoras do estado, ordenadas por participação no total.
             </>
           }
         />

@@ -68,10 +68,8 @@ export function RankingDistribuidoras({ dados, selecionada, onSelecionar }: Prop
     <div className="cartao">
       <h2>Ranking de distribuidoras</h2>
       <p className="subtitulo">
-        Ordenado pelo DEC ponderado, a média de horas de interrupção por consumidor, do
-        pior para o melhor. Clique em "Variação" pra ver quem mais piorou em relação aos
-        meses anteriores; no primeiro mês de dado carregado ainda não há variação pra
-        comparar. Só entram distribuidoras com consumidor-hora relevante no mês.
+        Ordenado pelo DEC, horas médias de interrupção por consumidor no mês. Clique em
+        "Variação" para ver quem mais piorou.
       </p>
       <div className="tabela-scroll">
         <table className="tabela-ranking">

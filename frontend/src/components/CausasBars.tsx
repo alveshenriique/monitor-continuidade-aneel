@@ -4,6 +4,30 @@ import { formatarCompacto } from '../format';
 
 const TOP_N = 7;
 
+// O pipeline normaliza a causa em maiúsculas sem acento de propósito (pra
+// agrupar variações de grafia da fonte) — aqui é só a camada de exibição,
+// traduzindo pro rótulo que o usuário final lê.
+const ROTULOS_CAUSA: Record<string, string> = {
+  'PROPRIAS DO SISTEMA': 'Próprias do sistema',
+  'MEIO AMBIENTE': 'Meio ambiente',
+  ALTERACAO: 'Alteração',
+  TERCEIROS: 'Terceiros',
+  'NAO CLASSIFICADA': 'Não classificada',
+  MANUTENCAO: 'Manutenção',
+  'FALHA OPERACIONAL': 'Falha operacional',
+  'ALIVIO DE CARGA': 'Alívio de carga',
+};
+
+function rotuloCausa(causa: string): string {
+  const conhecido = ROTULOS_CAUSA[causa];
+  if (conhecido) return conhecido;
+  // Fallback pra causa fora do mapa: capitalização razoável em vez do
+  // código cru em caixa alta.
+  return causa
+    .toLowerCase()
+    .replace(/\b\p{L}/gu, (letra) => letra.toUpperCase());
+}
+
 interface Props {
   causas: CausaMensal[];
 }
@@ -46,7 +70,7 @@ export function CausasBars({ causas }: Props) {
       {agregadas.map((c) => (
         <div className="causa-linha" key={c.causa}>
           <div className="causa-rotulo">
-            <span>{c.causa}</span>
+            <span>{rotuloCausa(c.causa)}</span>
             {c.programada !== null && (
               <span className="causa-tag">{c.programada ? 'programada' : 'não programada'}</span>
             )}

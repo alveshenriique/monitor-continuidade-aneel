@@ -42,9 +42,10 @@ perguntas centrais:
 
 - **Onde está piorando**: mapa do Brasil por UF, colorido pelo consumidor-hora
   perdido no mês.
-- **Quem piorou**: ranking nacional de distribuidoras por DEC ponderado, com a
-  variação em relação à média dos meses anteriores como contexto complementar; ao
-  clicar num estado do mapa, o mesmo ranking localizado a essa UF.
+- **Quem piorou**: ranking nacional de distribuidoras ordenado por DEC ponderado
+  (nível), com a variação em relação à média dos meses anteriores disponível ao
+  clicar na coluna "Variação"; ao clicar num estado do mapa, o mesmo ranking
+  localizado a essa UF.
 - **Como uma distribuidora está evoluindo**: ao clicar numa linha do ranking, série
   temporal do DEC mês a mês e quebra por causa da interrupção.
 - **Quem descumpriu a lei e quanto pagou por isso**: cruza com os Indicadores
@@ -250,11 +251,14 @@ Demais decisões, mais operacionais:
   recente tipicamente incompleto (ex.: compensação de um mês pode aparecer com
   poucos registros, ou zerada, simplesmente porque a ANEEL ainda não terminou de
   apurar). Pra não mostrar um "R$ 0" como se fosse fato, o painel não abre no mês
-  mais recente disponível; abre no último mês **consolidado**, hoje fixado em
-  `MES_CONSOLIDADO` (`api/src/config.ts`), único lugar do código onde esse valor
-  existe. O endpoint `/indicadores/competencias` devolve esse valor junto com a
-  lista de meses; o painel usa isso pra decidir a competência inicial e pra marcar,
-  no seletor e com um aviso visível, os meses posteriores como "em consolidação".
+  mais recente disponível; abre no último mês **consolidado**. Esse valor não é mais
+  fixado no código: o pipeline o deriva automaticamente do próprio dado
+  (`calcular_mes_consolidado` em `pipeline/transform.py` — último mês cuja contagem
+  de conjuntos reportando compensação não despenca em relação à mediana dos meses
+  anteriores do ano) e grava numa tabela `metadados` no banco, que a API lê. O
+  endpoint `/indicadores/competencias` devolve esse valor junto com a lista de
+  meses; o painel usa isso pra decidir a competência inicial e pra marcar, no
+  seletor e com um aviso visível, os meses posteriores como "em consolidação".
 
 ## Limitações conhecidas
 

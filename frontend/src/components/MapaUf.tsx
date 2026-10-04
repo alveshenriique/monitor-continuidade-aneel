@@ -64,11 +64,9 @@ export function MapaUf({ malha, dados, onSelecionar }: Props) {
     <div className="cartao">
       <h2>Onde está piorando</h2>
       <p className="subtitulo">
-        Consumidor-hora perdido por domicílio em cada UF no mês: a soma de consumidores
-        afetados × duração de cada interrupção, dividida pelos domicílios do estado
-        (Censo 2022/IBGE) — pra mostrar intensidade, não o tamanho do estado. Quanto
-        mais escura a cor, maior a intensidade.
+        Horas de interrupção por domicílio em cada estado, ajustado pela população.
       </p>
+      <p className="texto-muted">Fonte: domicílios do Censo 2022/IBGE.</p>
       <div className="mapa-layout">
         <svg
           viewBox={`0 0 ${LARGURA} ${ALTURA}`}
