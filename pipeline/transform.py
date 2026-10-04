@@ -49,6 +49,10 @@ DB_PATH = config.PROCESSED_DIR / "indicadores.duckdb"
 # Expressões reutilizadas -----------------------------------------------------
 DUR_H = "date_diff('second', DatInicioInterrupcao, DatFimInterrupcao) / 3600.0"
 AFETADOS = "LEAST(QtdConsumidoresAfetados, QtdConsumidoresAtivos)"  # cap outliers
+# PRODIST/ANEEL não contam, no FEC, interrupção com duração menor que 3 min —
+# só entra como "falta" pra esse indicador a partir desse limite (DEC e
+# consumidor-hora continuam somando a duração real de tudo, sem esse corte).
+DUR_MIN_FEC_H = 3 / 60  # 0,05h
 # Considera no indicador apenas o que NÃO foi expurgado.
 SEM_EXPURGO = "trim(DscMotivoExpurgo) = 'Não houve Expurgo'"
 FATO_TIPO = "upper(strip_accents(coalesce(DscFatoGeradorTipo, '')))"
@@ -118,7 +122,7 @@ def construir(con: duckdb.DuckDBPyConnection, src: str) -> None:
     """)
 
     # Grão regulatório: DEC/FEC por conjunto/mês.
-    con.execute("""
+    con.execute(f"""
         CREATE OR REPLACE TABLE fato_conjunto_mes AS
         SELECT sig_agente, any_value(distribuidora) AS distribuidora, cnpj,
                conjunto, any_value(conjunto_nome) AS conjunto_nome, competencia,
@@ -127,7 +131,7 @@ def construir(con: duckdb.DuckDBPyConnection, src: str) -> None:
                sum(afetados * dur_h)          AS consumidor_hora,
                max(ativos)                    AS ativos,
                sum(afetados * dur_h) / max(ativos) AS dec,
-               sum(afetados)        / max(ativos) AS fec
+               sum(afetados) FILTER (WHERE dur_h >= {DUR_MIN_FEC_H}) / max(ativos) AS fec
         FROM base
         GROUP BY sig_agente, cnpj, conjunto, competencia
     """)

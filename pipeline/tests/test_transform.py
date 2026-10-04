@@ -163,3 +163,34 @@ def test_conjunto_sem_ativos_e_excluido(con):
     _carregar(con, [linha(ativos=0)])
     (total,) = con.execute("SELECT count(*) FROM fato_conjunto_mes").fetchone()
     assert total == 0
+
+
+def test_fec_nao_conta_interrupcao_abaixo_de_3_minutos(con):
+    """PRODIST/ANEEL não contam, no FEC, interrupção com duração menor que 3
+    minutos — nosso FEC batia ~11% acima do oficial até incluirmos esse corte
+    (ver validação cruzada no README). DEC e consumidor-hora continuam
+    somando a duração real de toda interrupção, sem esse filtro."""
+    _carregar(con, [
+        # normal: 100 afetados, 1h — conta no FEC.
+        linha(afetados=100, ativos=1000, inicio=datetime(2026, 1, 10, 8, 0), fim=datetime(2026, 1, 10, 9, 0)),
+        # curta: 50 afetados, 2min (< 3min) — soma em n_interrupcoes/afetados_total/
+        # consumidor_hora/dec, mas NÃO entra no FEC.
+        linha(afetados=50, ativos=1000, inicio=datetime(2026, 1, 15, 8, 0), fim=datetime(2026, 1, 15, 8, 2)),
+    ])
+    n_interrupcoes, afetados_total, consumidor_hora, dec, fec = con.execute(
+        "SELECT n_interrupcoes, afetados_total, consumidor_hora, dec, fec FROM fato_conjunto_mes"
+    ).fetchone()
+    assert n_interrupcoes == 2
+    assert afetados_total == 150
+    assert consumidor_hora == pytest.approx(100 * 1 + 50 * (2 / 60))  # 101,666...
+    assert dec == pytest.approx((100 * 1 + 50 * (2 / 60)) / 1000)
+    assert fec == pytest.approx(100 / 1000)  # só a interrupção de 1h conta
+
+
+def test_fec_conta_interrupcao_de_exatamente_3_minutos(con):
+    """Limite é >= 3 min, não > — uma interrupção de exatamente 180s conta."""
+    _carregar(con, [
+        linha(afetados=100, ativos=1000, inicio=datetime(2026, 1, 10, 8, 0), fim=datetime(2026, 1, 10, 8, 3)),
+    ])
+    (fec,) = con.execute("SELECT fec FROM fato_conjunto_mes").fetchone()
+    assert fec == pytest.approx(0.1)  # 100 / 1000, não é excluída
